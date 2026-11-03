@@ -46,7 +46,7 @@
     background: var(--bg);
     color: var(--text);
     font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple SD Gothic Neo", "Noto Sans KR", "Apple Color Emoji", Arial, sans-serif;
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
@@ -62,7 +62,7 @@
     align-items: center;
     gap: 10px;
     color: var(--muted);
-    font-size: 12px;
+    font-size: 13px;
   }
   .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .week { margin-left: 6px; opacity: .8; }
@@ -93,14 +93,13 @@
 
   .facing {
     display: grid;
-    grid-template-columns: minmax(0, 17em) 1px minmax(0, 17em);
+    grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
     justify-content: center;
-    gap: 0 20px;
+    gap: 0 28px;
     align-items: center;
   }
   .seam { align-self: stretch; background: var(--line); }
-  .note { min-width: 0; text-wrap: balance; }
-  .note.a { text-align: right; }
+  .note { min-width: 0; text-align: center; padding: 0 4%; }
   .note a {
     color: inherit;
     font-weight: 500;
@@ -110,14 +109,13 @@
     overflow-wrap: anywhere;
   }
   .note a:hover { border-bottom-color: var(--text); }
-  .area { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+  .area { display: block; margin-top: 3px; font-size: 13px; color: var(--muted); }
 
   .question {
-    margin: 12px auto 0;
-    max-width: 36em;
+    margin: 16px auto 0;
+    max-width: 52em;
     text-align: center;
-    text-wrap: balance;
-    font-size: 14.5px;
+    font-size: 16px;
     word-break: keep-all;
   }
   .question::before { content: "💬 "; }
@@ -126,7 +124,7 @@
 
   @media (max-width: 480px) {
     .facing { grid-template-columns: 1fr; justify-content: stretch; gap: 6px 0; }
-    .note.a { text-align: left; }
+    .note { text-align: left; padding: 0; }
     .seam { display: none; }
     .question { text-align: left; }
   }
