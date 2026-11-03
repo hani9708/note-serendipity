@@ -93,12 +93,13 @@
 
   .facing {
     display: grid;
-    grid-template-columns: 1fr 1px 1fr;
+    grid-template-columns: minmax(0, 17em) 1px minmax(0, 17em);
+    justify-content: center;
     gap: 0 20px;
     align-items: center;
   }
   .seam { align-self: stretch; background: var(--line); }
-  .note { min-width: 0; }
+  .note { min-width: 0; text-wrap: balance; }
   .note.a { text-align: right; }
   .note a {
     color: inherit;
@@ -112,8 +113,10 @@
   .area { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
 
   .question {
-    margin-top: 12px;
+    margin: 12px auto 0;
+    max-width: 36em;
     text-align: center;
+    text-wrap: balance;
     font-size: 14.5px;
     word-break: keep-all;
   }
@@ -122,7 +125,7 @@
   .empty { color: var(--muted); font-size: 13px; }
 
   @media (max-width: 480px) {
-    .facing { grid-template-columns: 1fr; gap: 6px 0; }
+    .facing { grid-template-columns: 1fr; justify-content: stretch; gap: 6px 0; }
     .note.a { text-align: left; }
     .seam { display: none; }
     .question { text-align: left; }
