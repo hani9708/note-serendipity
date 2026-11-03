@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>이번 주 조합</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --dusk: #2b3050;
+    --haze: #574a68;
+    --afterglow: #e8b796;
+    --mist: #ebe6f0;
+    --fog: #a8a1b9;
+    --seam: rgba(232, 183, 150, 0.55);
+    --sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Segoe UI", "Noto Sans KR", sans-serif;
+    --serif: "Gowun Batang", "AppleMyungjo", "Noto Serif KR", serif;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { background: transparent; }
+  body {
+    font-family: var(--sans);
+    color: var(--mist);
+    -webkit-font-smoothing: antialiased;
+  }
+  .sky {
+    min-height: 100vh;
+    padding: 28px 32px 24px;
+    border-radius: 6px;
+    background:
+      radial-gradient(120% 60% at 50% 115%, rgba(232, 183, 150, 0.22), transparent 60%),
+      linear-gradient(180deg, var(--dusk) 0%, #3d3b5c 55%, var(--haze) 100%);
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 26px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 17px;
+    letter-spacing: 0.01em;
+  }
+  .week { font-size: 12px; color: var(--fog); white-space: nowrap; }
+
+  .pair + .pair { margin-top: 30px; }
+  .distance { font-size: 11.5px; color: var(--fog); text-align: center; margin-bottom: 10px; }
+
+  .facing {
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr;
+    gap: 0 22px;
+    align-items: center;
+  }
+  .seam {
+    align-self: stretch;
+    background: linear-gradient(180deg, transparent, var(--seam) 30%, var(--seam) 70%, transparent);
+  }
+  .note { min-width: 0; }
+  .note.a { text-align: right; }
+  .note a {
+    color: var(--mist);
+    text-decoration: none;
+    font-size: 14px;
+    line-height: 1.55;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+    border-bottom: 1px solid transparent;
+    transition: border-color .2s;
+  }
+  .note a:hover { border-bottom-color: var(--fog); }
+  .note a:focus-visible { outline: 1.5px solid var(--afterglow); outline-offset: 3px; border-radius: 2px; }
+  .area { display: block; margin-top: 4px; font-size: 11.5px; color: var(--fog); }
+
+  .question {
+    margin: 14px auto 0;
+    max-width: 34em;
+    font-family: var(--serif);
+    font-size: 15px;
+    line-height: 1.8;
+    text-align: center;
+    word-break: keep-all;
+    color: #f3e4d8;
+  }
+
+  .empty { font-size: 13.5px; color: var(--fog); line-height: 1.7; }
+  footer { margin-top: 28px; font-size: 11px; color: var(--fog); text-align: center; opacity: .8; }
+
+  @media (max-width: 520px) {
+    .sky { padding: 22px 18px; }
+    .facing { grid-template-columns: 1fr; gap: 10px 0; }
+    .note.a { text-align: left; }
+    .seam { height: 1px; width: 48px; align-self: start;
+      background: linear-gradient(90deg, var(--seam), transparent); }
+    .question, .distance { text-align: left; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main class="sky">
+  <header>
+    <h1>이번 주에 마주 놓을 노트</h1>
+    <span class="week" id="week"></span>
+  </header>
+  <section id="pairs" aria-live="polite"></section>
+  <footer>일요일마다 새 조합으로 바뀌어요</footer>
+</main>
+<script>
+  const DISTANCE = { near: "가까운 짝", far: "먼 짝" };
+
+  function weekLabel(iso) {
+    const d = new Date(iso + "T00:00:00");
+    return `${d.getMonth() + 1}월 ${d.getDate()}일 주`;
+  }
+
+  function noteEl(n, side) {
+    const wrap = document.createElement("div");
+    wrap.className = "note " + side;
+    const a = document.createElement("a");
+    a.href = "https://www.notion.so/" + n.id.replace(/-/g, "");
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = n.title;
+    wrap.appendChild(a);
+    if (n.area) {
+      const s = document.createElement("span");
+      s.className = "area";
+      s.textContent = n.area;
+      wrap.appendChild(s);
+    }
+    return wrap;
+  }
+
+  function render(data) {
+    document.getElementById("week").textContent = weekLabel(data.week);
+    const root = document.getElementById("pairs");
+    root.replaceChildren();
+    for (const p of data.pairs) {
+      const art = document.createElement("article");
+      art.className = "pair";
+      const dist = document.createElement("p");
+      dist.className = "distance";
+      dist.textContent = DISTANCE[p.kind] || "";
+      const facing = document.createElement("div");
+      facing.className = "facing";
+      const seam = document.createElement("div");
+      seam.className = "seam";
+      seam.setAttribute("aria-hidden", "true");
+      facing.append(noteEl(p.a, "a"), seam, noteEl(p.b, "b"));
+      const q = document.createElement("p");
+      q.className = "question";
+      q.textContent = p.question;
+      art.append(dist, facing, q);
+      root.appendChild(art);
+    }
+  }
+
+  fetch("current.json?t=" + Date.now(), { cache: "no-store" })
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(render)
+    .catch(() => {
+      document.getElementById("pairs").innerHTML =
+        '<p class="empty">이번 주 조합을 불러오지 못했어요. 노션 페이지를 새로 고쳐 주세요.</p>';
+    });
+</script>
+</body>
+</html>
