@@ -5,115 +5,173 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>이번 주 조합</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
 <style>
+  /* Notion 기본 색 */
   :root {
-    --dusk: #2b3050;
-    --haze: #574a68;
-    --afterglow: #e8b796;
-    --mist: #ebe6f0;
-    --fog: #a8a1b9;
-    --seam: rgba(232, 183, 150, 0.55);
-    --sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Segoe UI", "Noto Sans KR", sans-serif;
-    --serif: "Gowun Batang", "AppleMyungjo", "Noto Serif KR", serif;
+    --bg: #ffffff;
+    --text: rgb(55, 53, 47);
+    --muted: rgba(55, 53, 47, 0.5);
+    --line: rgba(55, 53, 47, 0.16);
+    --underline: rgba(55, 53, 47, 0.25);
+    --hover: rgba(55, 53, 47, 0.08);
+    --dot: rgba(55, 53, 47, 0.2);
+    color-scheme: light;
   }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #191919;
+      --text: rgba(255, 255, 255, 0.81);
+      --muted: rgba(255, 255, 255, 0.45);
+      --line: rgba(255, 255, 255, 0.14);
+      --underline: rgba(255, 255, 255, 0.28);
+      --hover: rgba(255, 255, 255, 0.06);
+      --dot: rgba(255, 255, 255, 0.22);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #191919;
+    --text: rgba(255, 255, 255, 0.81);
+    --muted: rgba(255, 255, 255, 0.45);
+    --line: rgba(255, 255, 255, 0.14);
+    --underline: rgba(255, 255, 255, 0.28);
+    --hover: rgba(255, 255, 255, 0.06);
+    --dot: rgba(255, 255, 255, 0.22);
+    color-scheme: dark;
+  }
+
   * { box-sizing: border-box; margin: 0; }
-  html, body { background: transparent; }
+  html, body { height: 100%; }
   body {
-    font-family: var(--sans);
-    color: var(--mist);
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple SD Gothic Neo", "Noto Sans KR", "Apple Color Emoji", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
-  .sky {
-    min-height: 100vh;
-    padding: 28px 32px 24px;
-    border-radius: 6px;
-    background:
-      radial-gradient(120% 60% at 50% 115%, rgba(232, 183, 150, 0.22), transparent 60%),
-      linear-gradient(180deg, var(--dusk) 0%, #3d3b5c 55%, var(--haze) 100%);
+  main {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 4px 10px;
   }
+
   header {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 12px;
-    margin-bottom: 26px;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 12px;
   }
-  h1 {
-    font-family: var(--serif);
-    font-weight: 400;
-    font-size: 17px;
-    letter-spacing: 0.01em;
+  .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .week { margin-left: 6px; opacity: .8; }
+  .dots { display: flex; gap: 2px; }
+  .dots button, .theme {
+    border: 0; background: none; color: inherit; cursor: pointer;
+    border-radius: 4px; font: inherit;
   }
-  .week { font-size: 12px; color: var(--fog); white-space: nowrap; }
+  .dots button { width: 18px; height: 18px; display: grid; place-items: center; padding: 0; }
+  .dots button::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--dot);
+  }
+  .dots button[aria-current="true"]::before { background: var(--text); opacity: .7; }
+  .dots button:hover, .theme:hover { background: var(--hover); }
+  .theme { width: 22px; height: 22px; display: grid; place-items: center; padding: 0; }
+  .theme svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+  :focus-visible { outline: 2px solid rgba(35, 131, 226, 0.6); outline-offset: 1px; }
 
-  .pair + .pair { margin-top: 30px; }
-  .distance { font-size: 11.5px; color: var(--fog); text-align: center; margin-bottom: 10px; }
+  .stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 14px 0 6px;
+    transition: opacity .35s ease;
+  }
+  .stage.fading { opacity: 0; }
 
   .facing {
     display: grid;
     grid-template-columns: 1fr 1px 1fr;
-    gap: 0 22px;
+    gap: 0 20px;
     align-items: center;
   }
-  .seam {
-    align-self: stretch;
-    background: linear-gradient(180deg, transparent, var(--seam) 30%, var(--seam) 70%, transparent);
-  }
+  .seam { align-self: stretch; background: var(--line); }
   .note { min-width: 0; }
   .note.a { text-align: right; }
   .note a {
-    color: var(--mist);
+    color: inherit;
+    font-weight: 500;
     text-decoration: none;
-    font-size: 14px;
-    line-height: 1.55;
+    border-bottom: 1px solid var(--underline);
     word-break: keep-all;
     overflow-wrap: anywhere;
-    border-bottom: 1px solid transparent;
-    transition: border-color .2s;
   }
-  .note a:hover { border-bottom-color: var(--fog); }
-  .note a:focus-visible { outline: 1.5px solid var(--afterglow); outline-offset: 3px; border-radius: 2px; }
-  .area { display: block; margin-top: 4px; font-size: 11.5px; color: var(--fog); }
+  .note a:hover { border-bottom-color: var(--text); }
+  .area { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
 
   .question {
-    margin: 14px auto 0;
-    max-width: 34em;
-    font-family: var(--serif);
-    font-size: 15px;
-    line-height: 1.8;
+    margin-top: 12px;
     text-align: center;
+    font-size: 14.5px;
     word-break: keep-all;
-    color: #f3e4d8;
   }
+  .question::before { content: "💬 "; }
 
-  .empty { font-size: 13.5px; color: var(--fog); line-height: 1.7; }
-  footer { margin-top: 28px; font-size: 11px; color: var(--fog); text-align: center; opacity: .8; }
+  .empty { color: var(--muted); font-size: 13px; }
 
-  @media (max-width: 520px) {
-    .sky { padding: 22px 18px; }
-    .facing { grid-template-columns: 1fr; gap: 10px 0; }
+  @media (max-width: 480px) {
+    .facing { grid-template-columns: 1fr; gap: 6px 0; }
     .note.a { text-align: left; }
-    .seam { height: 1px; width: 48px; align-self: start;
-      background: linear-gradient(90deg, var(--seam), transparent); }
-    .question, .distance { text-align: left; }
+    .seam { display: none; }
+    .question { text-align: left; }
   }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (prefers-reduced-motion: reduce) { .stage { transition: none; } }
 </style>
 </head>
 <body>
-<main class="sky">
+<main>
   <header>
-    <h1>이번 주에 마주 놓을 노트</h1>
-    <span class="week" id="week"></span>
+    <span class="title">이번 주에 마주 놓을 노트 <span class="week" id="week"></span></span>
+    <nav class="dots" id="dots" aria-label="조합 고르기"></nav>
+    <button class="theme" id="theme" type="button"></button>
   </header>
-  <section id="pairs" aria-live="polite"></section>
-  <footer>일요일마다 새 조합으로 바뀌어요</footer>
+  <section class="stage" id="stage" aria-live="polite"></section>
 </main>
 <script>
+  const ROTATE_MS = 15000;          // 한 조합을 보여주는 시간
+  const REFETCH_MS = 30 * 60 * 1000; // 새 주 조합을 다시 읽어오는 간격
   const DISTANCE = { near: "가까운 짝", far: "먼 짝" };
+
+  /* ---------- 테마: 자동 → 라이트 → 다크 ---------- */
+  const THEMES = ["auto", "light", "dark"];
+  const ICONS = {
+    auto: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11" /><path d="M8 2.5a5.5 5.5 0 0 0 0 11z" fill="currentColor" stroke="none"/></svg>',
+    light: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1"/></svg>',
+    dark: '<svg viewBox="0 0 16 16"><path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5z"/></svg>'
+  };
+  const LABEL = { auto: "테마: 시스템 따라가기", light: "테마: 라이트", dark: "테마: 다크" };
+  let theme = "auto";
+  try { theme = localStorage.getItem("ns-theme") || "auto"; } catch (e) {}
+  const themeBtn = document.getElementById("theme");
+  function applyTheme() {
+    if (theme === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", theme);
+    themeBtn.innerHTML = ICONS[theme];
+    themeBtn.title = themeBtn.ariaLabel = LABEL[theme];
+  }
+  themeBtn.addEventListener("click", () => {
+    theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+    try { localStorage.setItem("ns-theme", theme); } catch (e) {}
+    applyTheme();
+  });
+  applyTheme();
+
+  /* ---------- 조합 표시 ---------- */
+  let data = null, index = 0, timer = null, paused = false;
+  const stage = document.getElementById("stage");
+  const dots = document.getElementById("dots");
 
   function weekLabel(iso) {
     const d = new Date(iso + "T00:00:00");
@@ -138,37 +196,65 @@
     return wrap;
   }
 
-  function render(data) {
-    document.getElementById("week").textContent = weekLabel(data.week);
-    const root = document.getElementById("pairs");
-    root.replaceChildren();
-    for (const p of data.pairs) {
-      const art = document.createElement("article");
-      art.className = "pair";
-      const dist = document.createElement("p");
-      dist.className = "distance";
-      dist.textContent = DISTANCE[p.kind] || "";
-      const facing = document.createElement("div");
-      facing.className = "facing";
-      const seam = document.createElement("div");
-      seam.className = "seam";
-      seam.setAttribute("aria-hidden", "true");
-      facing.append(noteEl(p.a, "a"), seam, noteEl(p.b, "b"));
-      const q = document.createElement("p");
-      q.className = "question";
-      q.textContent = p.question;
-      art.append(dist, facing, q);
-      root.appendChild(art);
-    }
+  function draw() {
+    const p = data.pairs[index];
+    const facing = document.createElement("div");
+    facing.className = "facing";
+    const seam = document.createElement("div");
+    seam.className = "seam";
+    facing.append(noteEl(p.a, "a"), seam, noteEl(p.b, "b"));
+    const q = document.createElement("p");
+    q.className = "question";
+    q.textContent = p.question;
+    stage.replaceChildren(facing, q);
+    [...dots.children].forEach((b, i) => b.setAttribute("aria-current", i === index ? "true" : "false"));
   }
 
-  fetch("current.json?t=" + Date.now(), { cache: "no-store" })
-    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(render)
-    .catch(() => {
-      document.getElementById("pairs").innerHTML =
-        '<p class="empty">이번 주 조합을 불러오지 못했어요. 노션 페이지를 새로 고쳐 주세요.</p>';
-    });
+  function show(i, animate = true) {
+    index = (i + data.pairs.length) % data.pairs.length;
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!animate || reduce) { draw(); return; }
+    stage.classList.add("fading");
+    setTimeout(() => { draw(); stage.classList.remove("fading"); }, 350);
+  }
+
+  function restartTimer() {
+    clearInterval(timer);
+    timer = setInterval(() => { if (!paused && !document.hidden) show(index + 1); }, ROTATE_MS);
+  }
+
+  function render(d) {
+    const sameWeek = data && data.week === d.week;
+    data = d;
+    document.getElementById("week").textContent = weekLabel(d.week);
+    dots.replaceChildren(...d.pairs.map((p, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.ariaLabel = `${i + 1}번째 조합 (${DISTANCE[p.kind] || ""})`;
+      b.title = DISTANCE[p.kind] || "";
+      b.addEventListener("click", () => { show(i); restartTimer(); });
+      return b;
+    }));
+    show(sameWeek ? index : 0, false);
+    restartTimer();
+  }
+
+  function load() {
+    return fetch("current.json?t=" + Date.now(), { cache: "no-store" })
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(render)
+      .catch(() => {
+        if (!data) stage.innerHTML = '<p class="empty">이번 주 조합을 불러오지 못했어요. 노션 페이지를 새로 고쳐 주세요.</p>';
+      });
+  }
+
+  document.querySelector("main").addEventListener("mouseenter", () => paused = true);
+  document.querySelector("main").addEventListener("mouseleave", () => paused = false);
+  document.addEventListener("focusin", () => paused = true);
+  document.addEventListener("focusout", () => paused = false);
+
+  load();
+  setInterval(load, REFETCH_MS);
 </script>
 </body>
 </html>
