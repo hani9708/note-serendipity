@@ -180,8 +180,12 @@
   const dots = document.getElementById("dots");
 
   function weekLabel(iso) {
-    const d = new Date(iso + "T00:00:00");
-    return `${d.getMonth() + 1}월 ${d.getDate()}일 주`;
+    // 월요일~일요일 범위로: "11월 2일 – 8일", 달이 바뀌면 "10월 26일 – 11월 1일"
+    const s = new Date(iso + "T00:00:00");
+    const e = new Date(s); e.setDate(s.getDate() + 6);
+    const start = `${s.getMonth() + 1}월 ${s.getDate()}일`;
+    const end = s.getMonth() === e.getMonth() ? `${e.getDate()}일` : `${e.getMonth() + 1}월 ${e.getDate()}일`;
+    return `${start} – ${end}`;
   }
 
   function noteEl(n, side) {
