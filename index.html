@@ -64,7 +64,10 @@
     color: var(--muted);
     font-size: 13px;
   }
-  .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* 조작 버튼은 제목 바로 옆(왼쪽)에 둔다: 노션 embed에 마우스를 올리면
+     오른쪽 위에 노션 도구 막대(댓글·캡션·열기·…)가 떠서 그 자리를 덮기 때문 */
+  .title { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .controls { display: flex; align-items: center; gap: 4px; flex: none; }
   .week { margin-left: 6px; opacity: .8; }
   .dots { display: flex; gap: 2px; }
   .dots button, .theme {
@@ -135,8 +138,10 @@
 <main>
   <header>
     <span class="title">이번 주에 마주 놓을 노트 <span class="week" id="week"></span></span>
-    <nav class="dots" id="dots" aria-label="조합 고르기"></nav>
-    <button class="theme" id="theme" type="button"></button>
+    <span class="controls">
+      <nav class="dots" id="dots" aria-label="조합 고르기"></nav>
+      <button class="theme" id="theme" type="button"></button>
+    </span>
   </header>
   <section class="stage" id="stage" aria-live="polite"></section>
 </main>
