@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>책상</title>
+<style>
+  /* Notion 기본 색 — note-serendipity 위젯과 같은 값 */
+  :root {
+    --bg: #ffffff;
+    --text: rgb(55, 53, 47);
+    --muted: rgba(55, 53, 47, 0.5);
+    --line: rgba(55, 53, 47, 0.16);
+    --underline: rgba(55, 53, 47, 0.25);
+    --hover: rgba(55, 53, 47, 0.08);
+    --dot: rgba(55, 53, 47, 0.2);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #191919;
+      --text: rgba(255, 255, 255, 0.81);
+      --muted: rgba(255, 255, 255, 0.45);
+      --line: rgba(255, 255, 255, 0.14);
+      --underline: rgba(255, 255, 255, 0.28);
+      --hover: rgba(255, 255, 255, 0.06);
+      --dot: rgba(255, 255, 255, 0.22);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #191919;
+    --text: rgba(255, 255, 255, 0.81);
+    --muted: rgba(255, 255, 255, 0.45);
+    --line: rgba(255, 255, 255, 0.14);
+    --underline: rgba(255, 255, 255, 0.28);
+    --hover: rgba(255, 255, 255, 0.06);
+    --dot: rgba(255, 255, 255, 0.22);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple SD Gothic Neo", "Noto Sans KR", "Apple Color Emoji", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  main {
+    min-height: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) 1px minmax(0, 7fr);
+    gap: 0 28px;
+    padding: 12px 4px 10px;
+  }
+  .seam { background: var(--line); }
+  section { min-width: 0; display: flex; flex-direction: column; }
+
+  /* 머리 줄: 조작 버튼은 제목 바로 옆(왼쪽)에 — 노션 embed 오른쪽 위는 노션 도구 막대가 덮음 */
+  .head {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--muted); font-size: 13px;
+    white-space: nowrap;
+  }
+  .head .label { overflow: hidden; text-overflow: ellipsis; }
+  .controls { display: flex; align-items: center; gap: 4px; flex: none; }
+  .dots { display: flex; gap: 2px; }
+  .dots button, .theme {
+    border: 0; background: none; color: inherit; cursor: pointer;
+    border-radius: 4px; font: inherit;
+  }
+  .dots button { width: 18px; height: 18px; display: grid; place-items: center; padding: 0; }
+  .dots button::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--dot);
+  }
+  .dots button[aria-current="true"]::before { background: var(--text); opacity: .7; }
+  .dots button:hover, .theme:hover { background: var(--hover); }
+  .theme { width: 22px; height: 22px; display: grid; place-items: center; padding: 0; }
+  .theme svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+  :focus-visible { outline: 2px solid rgba(35, 131, 226, 0.6); outline-offset: 1px; }
+
+  .body {
+    flex: 1;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 12px 0 4px;
+    transition: opacity .35s ease;
+  }
+  .body.fading { opacity: 0; }
+
+  /* 초점 */
+  .focus-text { font-size: 15px; word-break: keep-all; overflow-wrap: anywhere; }
+  .focus-text.none { color: var(--muted); }
+  .sub { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  a.quiet { color: inherit; text-decoration: none; border-bottom: 1px solid var(--underline); }
+  a.quiet:hover { border-bottom-color: var(--text); color: var(--text); }
+
+  /* 오늘의 문장 */
+  .sentence a {
+    color: inherit; text-decoration: none;
+    font-size: 17px; font-weight: 500;
+    word-break: keep-all; overflow-wrap: anywhere;
+  }
+  .sentence a:hover { box-shadow: inset 0 -1px 0 var(--underline); }
+  .meta { margin-top: 10px; font-size: 13px; color: var(--muted); word-break: keep-all; }
+  .meta div + div { margin-top: 1px; }
+
+  .empty { color: var(--muted); font-size: 13px; }
+
+  @media (max-width: 560px) {
+    main { grid-template-columns: 1fr; gap: 14px 0; }
+    .seam { height: 1px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .body { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <section>
+    <div class="head"><span class="label" id="focus-label">🎯 이번 주 초점</span></div>
+    <div class="body" id="focus"></div>
+  </section>
+  <div class="seam"></div>
+  <section>
+    <div class="head">
+      <span class="label" id="sentence-label">📎 오늘의 문장</span>
+      <span class="controls">
+        <nav class="dots" id="dots" aria-label="최근 문장 고르기"></nav>
+        <button class="theme" id="theme" type="button"></button>
+      </span>
+    </div>
+    <div class="body" id="sentence" aria-live="polite"></div>
+  </section>
+</main>
+<script>
+  const REFETCH_MS = 60 * 60 * 1000; // 한 시간마다 새 문장을 다시 읽음
+  const NOTION = id => "https://www.notion.so/" + id.replace(/-/g, "");
+
+  /* ---------- 테마: 자동 → 라이트 → 다크 (note-serendipity와 같음) ---------- */
+  const THEMES = ["auto", "light", "dark"];
+  const ICONS = {
+    auto: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11" /><path d="M8 2.5a5.5 5.5 0 0 0 0 11z" fill="currentColor" stroke="none"/></svg>',
+    light: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1"/></svg>',
+    dark: '<svg viewBox="0 0 16 16"><path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5z"/></svg>'
+  };
+  const LABEL = { auto: "테마: 시스템 따라가기", light: "테마: 라이트", dark: "테마: 다크" };
+  let theme = "auto";
+  try { theme = localStorage.getItem("sd-theme") || "auto"; } catch (e) {}
+  const themeBtn = document.getElementById("theme");
+  function applyTheme() {
+    if (theme === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", theme);
+    themeBtn.innerHTML = ICONS[theme];
+    themeBtn.title = themeBtn.ariaLabel = LABEL[theme];
+  }
+  themeBtn.addEventListener("click", () => {
+    theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+    try { localStorage.setItem("sd-theme", theme); } catch (e) {}
+    applyTheme();
+  });
+  applyTheme();
+
+  /* ---------- 복호화: 열쇠는 주소의 # 뒤에만 있음 (서버로 가지 않음) ---------- */
+  function b64(s) {
+    s = s.replace(/-/g, "+").replace(/_/g, "/");
+    while (s.length % 4) s += "=";
+    return Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  }
+  async function unseal(sealed) {
+    const raw = b64(location.hash.slice(1));
+    const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(sealed.iv) }, key, b64(sealed.ct));
+    return JSON.parse(new TextDecoder().decode(plain));
+  }
+
+  /* ---------- 그리기 ---------- */
+  const focusEl = document.getElementById("focus");
+  const sentenceEl = document.getElementById("sentence");
+  const dots = document.getElementById("dots");
+  let data = null, index = 0;
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function drawFocus(f) {
+    document.getElementById("focus-label").textContent = "🎯 " + (f.range ? f.range + " 초점" : "이번 주 초점");
+    const t = el("p", "focus-text" + (f.text ? "" : " none"), f.text || "없음");
+    const parts = [t];
+    if (f.report) {
+      const sub = el("p", "sub");
+      const a = el("a", "quiet", f.report_label || "리포트 열기");
+      a.href = NOTION(f.report); a.target = "_blank"; a.rel = "noopener";
+      sub.appendChild(a);
+      parts.push(sub);
+    }
+    focusEl.replaceChildren(...parts);
+  }
+
+  function drawSentence() {
+    const s = data.sentences[index];
+    document.getElementById("sentence-label").textContent = index === 0 ? "📎 오늘의 문장" : "📎 " + s.label;
+    const p = el("p", "sentence");
+    const a = el("a", null, s.text);
+    a.href = NOTION(s.id); a.target = "_blank"; a.rel = "noopener";
+    p.appendChild(a);
+    const meta = el("div", "meta");
+    if (s.bone) meta.appendChild(el("div", null, "✍️ " + s.bone));
+    const tail = [...(s.tags || [])];
+    if (s.book) tail.push(s.book);
+    if (tail.length) meta.appendChild(el("div", null, tail.join(" · ")));
+    sentenceEl.replaceChildren(p, ...(meta.children.length ? [meta] : []));
+    [...dots.children].forEach((b, i) => b.setAttribute("aria-current", i === index ? "true" : "false"));
+  }
+
+  function show(i) {
+    index = i;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { drawSentence(); return; }
+    sentenceEl.classList.add("fading");
+    setTimeout(() => { drawSentence(); sentenceEl.classList.remove("fading"); }, 350);
+  }
+
+  function render(d) {
+    const sameDay = data && data.updated === d.updated;
+    data = d;
+    drawFocus(d.focus || {});
+    dots.replaceChildren(...d.sentences.map((s, i) => {
+      const b = el("button");
+      b.type = "button";
+      b.ariaLabel = b.title = i === 0 ? "오늘의 문장" : s.label;
+      b.addEventListener("click", () => show(i));
+      return b;
+    }));
+    dots.hidden = d.sentences.length < 2;
+    index = sameDay ? Math.min(index, d.sentences.length - 1) : 0;
+    drawSentence();
+  }
+
+  function fail(msg) {
+    if (data) return;
+    focusEl.replaceChildren(el("p", "empty", msg));
+    sentenceEl.replaceChildren();
+  }
+
+  function load() {
+    if (location.hash.length < 10) return fail("열쇠가 없어요. 노션에 넣은 주소를 그대로 써 주세요.");
+    return fetch("data.json?t=" + Date.now(), { cache: "no-store" })
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(unseal)
+      .then(render)
+      .catch(() => fail("오늘의 문장을 불러오지 못했어요. 노션 페이지를 새로 고쳐 주세요."));
+  }
+
+  load();
+  setInterval(load, REFETCH_MS);
+</script>
+</body>
+</html>

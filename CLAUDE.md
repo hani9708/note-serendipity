@@ -25,3 +25,21 @@
 ## 하지 않는 것
 - 노션에 쓰지 않는다 (노트 relation·본문·속성 모두). 이 작업은 읽기 전용.
 - 노트 본문 문장을 `current.json`에 옮기지 않는다. 제목과 질문만.
+
+---
+
+# desk/ — Studio 위젯 (이번 주 초점 · 오늘의 문장)
+
+노션 Studio 페이지 맨 위에 embed로 들어간다. **내용은 암호화해서만 올린다** (공개 저장소).
+
+## 파일
+- `desk/index.html` — 위젯 화면. `desk/data.json`을 읽고, 주소의 `#` 뒤 열쇠로 브라우저에서 푼다.
+- `desk/data.json` — 암호문만 (`{v, iv, ct}`). `desk/seal.py`로 만든다.
+- `desk/seal.py` — 평문 JSON → `data.json`. 열쇠는 환경 변수 `STUDIO_DESK_KEY`로만 받는다.
+- `desk/history.json` — 날짜별로 띄운 표현 수집함 행 **ID만** (문장 금지).
+
+## 규칙
+- 평문 JSON·열쇠는 절대 커밋하지 않는다. 평문은 작업 폴더 밖 임시 파일에만.
+- 평문 모양: `{updated, focus:{range, text, report, report_label}, sentences:[{date, label, id, text, bone, tags, book}]}` — `sentences[0]`이 오늘, 최근 3개까지.
+- 크랙 작품 이름은 넣지 않는다 (`book`은 책 문장일 때만).
+- 커밋 메시지 `desk YYYY-MM-DD`.
