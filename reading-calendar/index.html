@@ -57,7 +57,7 @@
   .week div { color: var(--muted); font-size: 12px; text-align: right; padding: 0 6px 4px; }
   .grid { border-left: 1px solid var(--line); border-top: 1px solid var(--line); }
   .day {
-    position: relative; height: 62px; padding: 3px 6px;
+    position: relative; aspect-ratio: 5 / 4; padding: 3px 6px;
     border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
     overflow: hidden;
   }
@@ -69,12 +69,12 @@
     display: inline-block; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
     background: var(--text); color: var(--bg); text-align: center; font-weight: 600;
   }
-  .covers { position: absolute; left: 6px; top: 5px; display: flex; }
+  .covers { position: absolute; left: 6px; top: 6px; bottom: 6px; display: flex; }
   .covers img {
-    height: 50px; width: 34px; object-fit: cover; border-radius: 2px; background: var(--line);
+    height: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 2px; background: var(--line);
     box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgba(0,0,0,.15);
   }
-  .covers img + img { margin-left: -18px; }
+  .covers img + img { margin-left: -60%; }
   .dots { position: absolute; right: 6px; bottom: 6px; display: flex; flex-wrap: wrap-reverse; justify-content: flex-end;
           gap: 3px; max-width: 46px; align-items: center; }
   .dot { width: 7px; height: 7px; border-radius: 50%; }
