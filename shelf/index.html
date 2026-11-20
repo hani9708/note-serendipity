@@ -86,22 +86,28 @@
   .book.reading:hover { opacity: .8; }
   .book::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(55,53,47,.16); pointer-events: none; }
   /* 누적 책장 */
-  .row { display: flex; width: 100%; min-width: 0; margin-top: 20px; }
+  .row { display: flex; width: 100%; min-width: 0; margin-top: 24px; }
   .book { transition: transform .2s ease, opacity .2s ease, filter .2s ease; }
   .book.lift { transform: translateY(-10px); }
-  /* 칸막이 = 책보다 살짝 높이 솟은 얇은 색인 카드, 연도는 세로 명조 */
+  /* 칸막이 = 가는 선 + 반투명 포스트잇 깃발(해마다 색이 바뀜). 다크 모드는 배경이 어두워 덜 투명하게 */
+  :root { --flag-a: .5; --flag-ink: rgba(45,38,25,.82); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --flag-a: .9; } }
+  :root[data-theme="dark"] { --flag-a: .9; }
   .divider {
-    flex: none; width: 11px; align-self: stretch; margin-top: -12px; cursor: default;
-    display: flex; justify-content: center; padding-top: 6px;
-    background: var(--bg); border: 1px solid var(--line); border-bottom: 0; border-radius: 3px 3px 0 0;
-    box-shadow: 1px 0 2px rgba(0,0,0,.18); transition: opacity .2s ease, border-color .2s ease;
+    flex: none; width: 2px; align-self: stretch; margin-top: -8px; position: relative; z-index: 3; cursor: default;
+    background: var(--shelf); border-radius: 1px; opacity: .8; transition: opacity .2s ease;
   }
   .divider span {
-    writing-mode: vertical-rl; font-family: "Noto Serif KR", "Apple Myungjo", serif;
-    font-size: 9px; font-weight: 600; letter-spacing: .5px; color: var(--muted); transition: color .2s ease;
+    position: absolute; z-index: 2; top: 0; left: 2px; white-space: nowrap;
+    font-family: "Noto Serif KR", "Apple Myungjo", serif; font-weight: 500; font-size: 10px; letter-spacing: .6px;
+    color: var(--flag-ink); padding: 0 8px 0 6px; line-height: 16px; border-radius: 0 3px 3px 0;
+    background: linear-gradient(180deg, rgba(255,255,255,.38), rgba(255,255,255,.08) 55%, rgba(255,255,255,0)), rgb(var(--flag) / var(--flag-a));
+    box-shadow: inset 0 0 0 .5px rgba(255,255,255,.45), 0 1px 1.5px rgba(0,0,0,.12);
+    -webkit-backdrop-filter: blur(1.5px) saturate(1.2); backdrop-filter: blur(1.5px) saturate(1.2);
+    transition: transform .2s ease;
   }
-  .divider.on { border-color: var(--muted); }
-  .divider.on span { color: var(--text); }
+  .divider.on { opacity: 1; }
+  .divider.on span { transform: translateY(-2px); }
   /* 칸막이에 마우스: 그해 책만 떠오르고 나머지는 어둡고 흐리게 */
   #shelves.focus .book:not(.lift) { opacity: .18; filter: grayscale(.6); }
   #shelves.focus .divider:not(.on) { opacity: .25; }
@@ -209,6 +215,7 @@ function renderYear() {
 }
 
 // 누적 책장: 오래된 해부터 한 줄로 이어 꽂고, 해가 바뀌는 자리에 칸막이. 줄이 차면 다음 칸으로
+const FLAGS = ['250 215 90', '250 150 175', '110 210 175', '130 180 250'];  // 노랑·분홍·민트·하늘 (RGB)
 function renderAll() {
   const years = {};
   for (const b of BOOKS) { const y = yearOf(b); if (y) (years[y] ||= []).push(b); }
@@ -231,6 +238,7 @@ function renderAll() {
       const d = document.createElement('div');
       d.className = 'divider';
       d.innerHTML = `<span>${it.divider}</span>`;
+      d.style.setProperty('--flag', FLAGS[+it.divider % FLAGS.length]);  // 해마다 같은 색
       d.addEventListener('mouseenter', () => lift(it.divider, d, it.list));
       d.addEventListener('mouseleave', () => lift(null));
       row.appendChild(d);
@@ -261,11 +269,11 @@ function lift(y, d, list) {
   d.classList.add('on');
   tip.textContent = `${y} · ${stats(list)}`;
   tip.classList.add('on');
-  const r = d.getBoundingClientRect();
+  const r = d.querySelector('span').getBoundingClientRect();  // 깃발 바로 옆에
   let left = r.right + 6;
   if (left + tip.offsetWidth > innerWidth - 4) left = r.left - tip.offsetWidth - 6;
   tip.style.left = Math.max(4, left) + 'px';
-  tip.style.top = Math.max(4, r.top - 4) + 'px';
+  tip.style.top = Math.max(4, r.top + r.height / 2 - tip.offsetHeight / 2) + 'px';
 }
 
 const pop = document.getElementById('pop');
