@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>독서 캘린더</title>
+<style>
+  /* 노션 기본 색 — 책장 위젯과 같은 값 */
+  :root {
+    --bg: #ffffff;
+    --text: rgb(55, 53, 47);
+    --muted: rgba(55, 53, 47, 0.5);
+    --faint: rgba(55, 53, 47, 0.25);
+    --line: rgba(55, 53, 47, 0.09);
+    --hover: rgba(55, 53, 47, 0.06);
+    --shadow: 0 0 0 1px rgba(15,15,15,.05), 0 3px 6px rgba(15,15,15,.1), 0 9px 24px rgba(15,15,15,.2);
+    --dotL: 0.48;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #191919; --text: rgba(255,255,255,.81); --muted: rgba(255,255,255,.45); --faint: rgba(255,255,255,.2);
+      --line: rgba(255,255,255,.08); --hover: rgba(255,255,255,.05);
+      --shadow: 0 0 0 1px rgba(255,255,255,.08), 0 3px 6px rgba(0,0,0,.4), 0 9px 24px rgba(0,0,0,.5);
+      --dotL: 0.62;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #191919; --text: rgba(255,255,255,.81); --muted: rgba(255,255,255,.45); --faint: rgba(255,255,255,.2);
+    --line: rgba(255,255,255,.08); --hover: rgba(255,255,255,.05);
+    --shadow: 0 0 0 1px rgba(255,255,255,.08), 0 3px 6px rgba(0,0,0,.4), 0 9px 24px rgba(0,0,0,.5);
+    --dotL: 0.62;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple SD Gothic Neo", "Noto Sans KR", Arial, sans-serif;
+    font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+  }
+  main { padding: 12px 4px 10px; }
+  header { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; border-radius: 4px; padding: 0; }
+  button:hover:not(:disabled) { background: var(--hover); }
+  button:disabled { opacity: .3; cursor: default; }
+  .theme { width: 22px; height: 22px; display: grid; place-items: center; }
+  .theme svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+
+  .bar { display: flex; align-items: center; gap: 2px; margin-bottom: 6px; }
+  .month { font-size: 15px; font-weight: 600; padding: 0 4px; margin-left: -4px; }
+  .bar .sp { flex: 1; }
+  .nav { width: 24px; height: 24px; color: var(--muted); font-size: 16px; line-height: 1; }
+
+  .week, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .week div { color: var(--muted); font-size: 12px; text-align: right; padding: 0 6px 4px; }
+  .grid { border-left: 1px solid var(--line); border-top: 1px solid var(--line); }
+  .day {
+    position: relative; height: 62px; padding: 3px 6px;
+    border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .day.other .n { color: var(--faint); }
+  .day.has { cursor: pointer; }
+  .day.has:hover, .day.open { background: var(--hover); }
+  .n { font-size: 12px; color: var(--muted); text-align: right; line-height: 20px; }
+  .today .n span {
+    display: inline-block; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
+    background: var(--text); color: var(--bg); text-align: center; font-weight: 600;
+  }
+  .covers { position: absolute; left: 6px; top: 5px; display: flex; }
+  .covers img {
+    height: 50px; width: 34px; object-fit: cover; border-radius: 2px; background: var(--line);
+    box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgba(0,0,0,.15);
+  }
+  .covers img + img { margin-left: -18px; }
+  .dots { position: absolute; right: 6px; bottom: 6px; display: flex; flex-wrap: wrap-reverse; justify-content: flex-end;
+          gap: 3px; max-width: 46px; align-items: center; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .more { font-size: 10px; color: var(--muted); line-height: 7px; }
+
+  .stats { margin-top: 8px; color: var(--muted); font-size: 12px; }
+  .credit { margin-top: 14px; color: var(--muted); font-size: 11px; opacity: .8; }
+
+  .pop {
+    position: fixed; z-index: 10; width: 280px; display: none;
+    background: var(--bg); box-shadow: var(--shadow); border-radius: 6px; padding: 6px;
+    max-height: 70vh; overflow: auto;
+  }
+  .pop.on { display: block; }
+  .pop .head { color: var(--muted); font-size: 12px; padding: 2px 6px 4px; }
+  .pop a { display: flex; gap: 8px; align-items: flex-start; padding: 5px 6px; border-radius: 4px; color: inherit; text-decoration: none; }
+  .pop a:hover { background: var(--hover); }
+  .pop a img { width: 28px; height: 40px; object-fit: cover; border-radius: 2px; flex: none; background: var(--line); }
+  .pop a .dot { flex: none; margin-top: 6px; }
+  .pop b { display: block; font-size: 13px; font-weight: 600; line-height: 1.35; }
+  .pop .t { font-size: 13px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .pop .s { color: var(--muted); font-size: 12px; line-height: 1.35; margin-top: 1px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span>독서 캘린더</span>
+    <button class="theme" type="button" aria-label="밝게/어둡게" onclick="toggleTheme()">
+      <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11" /><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></svg>
+    </button>
+  </header>
+  <div id="cal"></div>
+  <p class="credit">표지 이미지 YES24</p>
+</main>
+<div class="pop" id="pop"></div>
+
+<script>
+// 데이터는 cal.enc (맥 lounge-sync가 매일 만들어 올림): 책(완독한 날·표지·색) + 책에 연결된 스택 노트(만든 날).
+// 주소 # 뒤의 열쇠(k=…)로 브라우저 안에서만 푼다. 열쇠는 서버로 전송되지 않는다.
+let DATA = { books: {}, notes: [] };
+let byDay = {};               // 'YYYY-MM-DD' → { done: [bookId], notes: [note] }
+let cur, minYM, maxYM;        // 보고 있는 달·이동 범위 (연*12+월)
+
+const WD = ['일', '월', '화', '수', '목', '금', '토'];
+const pad = n => String(n).padStart(2, '0');
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const ym = s => +s.slice(0, 4) * 12 + (+s.slice(5, 7) - 1);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// 표지에서 뽑은 색은 너무 밝거나 어두울 수 있어서, 점으로 쓸 때만 밝기를 테마에 맞게 고정한다
+function dotColor(hex) {
+  const n = parseInt((hex || '#999999').slice(1), 16);
+  let r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+  let h = 0, s = 0;
+  if (mx !== mn) {
+    const d = mx - mn; s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn);
+    h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60;
+  }
+  return `hsl(${Math.round(h)} ${Math.round(Math.min(s, .7) * 100)}% calc(var(--dotL) * 100%))`;
+}
+
+function index() {
+  byDay = {};
+  const slot = d => (byDay[d] ||= { done: [], notes: [] });
+  const months = [];
+  for (const [id, b] of Object.entries(DATA.books)) if (b.done) { slot(b.done).done.push(id); months.push(ym(b.done)); }
+  for (const x of DATA.notes) { slot(x.d).notes.push(x); months.push(ym(x.d)); }
+  const now = new Date(), nowYM = now.getFullYear() * 12 + now.getMonth();
+  minYM = Math.min(nowYM, ...months);
+  maxYM = Math.max(nowYM, ...months);
+  cur = nowYM;
+}
+
+function render() {
+  const y = Math.floor(cur / 12), m = cur % 12;
+  const first = new Date(y, m, 1), start = new Date(y, m, 1 - first.getDay());
+  const today = iso(new Date());
+  let html = `<div class="bar"><button class="month" onclick="go(0)" title="이번 달">${y}년 ${m + 1}월</button><span class="sp"></span>
+    <button class="nav" onclick="go(-1)" ${cur <= minYM ? 'disabled' : ''} aria-label="이전 달">‹</button>
+    <button class="nav" onclick="go(1)" ${cur >= maxYM ? 'disabled' : ''} aria-label="다음 달">›</button></div>
+    <div class="week">${WD.map(w => `<div>${w}</div>`).join('')}</div><div class="grid">`;
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    const key = iso(d), other = d.getMonth() !== m, e = !other && byDay[key];
+    const cls = ['day', other && 'other', key === today && 'today', e && 'has'].filter(Boolean).join(' ');
+    let inner = `<div class="n"><span>${d.getDate()}</span></div>`;
+    if (e) {
+      if (e.done.length) inner += `<div class="covers">${e.done.slice(0, 3).map(id =>
+        `<img src="${esc(DATA.books[id].cover)}" alt="" loading="lazy">`).join('')}</div>`;
+      if (e.notes.length) {
+        const show = e.notes.slice(0, e.notes.length > 6 ? 5 : 6);
+        inner += `<div class="dots">${show.map(x => `<i class="dot" style="background:${dotColor(DATA.books[x.b].color)}"></i>`).join('')}${
+          e.notes.length > show.length ? `<span class="more">+${e.notes.length - show.length}</span>` : ''}</div>`;
+      }
+    }
+    html += `<div class="${cls}" data-d="${key}">${inner}</div>`;
+  }
+  html += `</div><p class="stats">${stats(y, m)}</p>`;
+  const box = document.getElementById('cal');
+  box.innerHTML = html;
+  box.querySelectorAll('.day.has').forEach(el => {
+    el.addEventListener('mouseenter', () => { if (!pinned) show(el); });
+    el.addEventListener('mouseleave', () => { if (!pinned) later(); });
+    el.addEventListener('click', ev => { ev.stopPropagation(); pinned = pinned === el ? null : el; pinned ? show(el) : hide(); });
+  });
+}
+
+function stats(y, m) {
+  const pre = `${y}-${pad(m + 1)}`;
+  const days = Object.keys(byDay).filter(d => d.startsWith(pre));
+  const done = days.reduce((s, d) => s + byDay[d].done.length, 0);
+  const notes = days.reduce((s, d) => s + byDay[d].notes.length, 0);
+  const noteDays = days.filter(d => byDay[d].notes.length).length;
+  const parts = [`${m + 1}월`];
+  if (done) parts.push(`완독 ${done}권`);
+  if (notes) parts.push(`스택 ${notes}개`, `기록한 날 ${noteDays}일`);
+  return parts.length > 1 ? parts.join(' · ') : `${m + 1}월 · 기록 없음`;
+}
+
+function go(step) {
+  const nowYM = new Date().getFullYear() * 12 + new Date().getMonth();
+  cur = step === 0 ? nowYM : Math.min(maxYM, Math.max(minYM, cur + step));
+  pinned = null; hide(); render();
+}
+
+const pop = document.getElementById('pop');
+let pinned = null, timer = null;
+function show(el) {
+  clearTimeout(timer);
+  document.querySelectorAll('.day.open').forEach(x => x.classList.remove('open'));
+  el.classList.add('open');
+  const d = el.dataset.d, e = byDay[d], [yy, mm, dd] = d.split('-').map(Number);
+  let html = `<div class="head">${mm}월 ${dd}일 (${WD[new Date(yy, mm - 1, dd).getDay()]})</div>`;
+  for (const id of e.done) {
+    const b = DATA.books[id];
+    html += `<a href="${esc(b.url)}" target="_blank" rel="noopener"><img src="${esc(b.cover)}" alt=""><span><b>${esc(b.title)}</b><span class="s">완독</span></span></a>`;
+  }
+  for (const x of e.notes) {
+    const b = DATA.books[x.b];
+    html += `<a href="${esc(x.u)}" target="_blank" rel="noopener"><i class="dot" style="background:${dotColor(b.color)}"></i><span><span class="t">${esc(x.t)}</span><span class="s">${esc(b.title)}</span></span></a>`;
+  }
+  pop.innerHTML = html;
+  pop.classList.add('on');
+  // 칸 오른쪽에 띄우고, 자리가 없으면 왼쪽으로. 세로는 칸 위쪽에 맞추되 화면 안으로
+  const r = el.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = r.right + 6;
+  if (left + pw > innerWidth - 4) left = r.left - pw - 6;
+  pop.style.left = Math.max(4, Math.min(left, innerWidth - pw - 4)) + 'px';
+  pop.style.top = Math.max(4, Math.min(r.top, innerHeight - ph - 4)) + 'px';
+}
+function hide() {
+  pop.classList.remove('on');
+  document.querySelectorAll('.day.open').forEach(x => x.classList.remove('open'));
+}
+function later() { clearTimeout(timer); timer = setTimeout(() => { if (!pinned) hide(); }, 180); }
+pop.addEventListener('mouseenter', () => clearTimeout(timer));
+pop.addEventListener('mouseleave', () => { if (!pinned) later(); });
+document.addEventListener('click', ev => { if (!pop.contains(ev.target)) { pinned = null; hide(); } });
+
+function toggleTheme() {
+  const root = document.documentElement;
+  const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  root.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('shelf-theme', root.dataset.theme); } catch (e) {}
+}
+try { const t = localStorage.getItem('shelf-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+
+const b64 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+async function hmac(key, data) { return new Uint8Array(await crypto.subtle.sign('HMAC', key, data)); }
+function cat(...parts) {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0)); let i = 0;
+  for (const p of parts) { out.set(p, i); i += p.length; } return out;
+}
+async function decrypt(blob, rawKey) {
+  const key = await crypto.subtle.importKey('raw', rawKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const n = b64(blob.n), c = b64(blob.c), t = b64(blob.t);
+  const tag = (await hmac(key, cat(new TextEncoder().encode('tag'), n, c))).slice(0, 16);
+  if (tag.length !== t.length || tag.some((x, i) => x !== t[i])) throw new Error('열쇠가 맞지 않아요');
+  const out = new Uint8Array(c.length);
+  for (let i = 0, ctr = 0; i < c.length; i += 32, ctr++) {
+    const cb = new Uint8Array(4); new DataView(cb.buffer).setUint32(0, ctr);
+    const ks = await hmac(key, cat(n, cb));
+    for (let j = 0; j < 32 && i + j < c.length; j++) out[i + j] = c[i + j] ^ ks[j];
+  }
+  return JSON.parse(new TextDecoder().decode(out));
+}
+function notice(text) { document.getElementById('cal').innerHTML = `<p class="stats">${text}</p>`; }
+(async () => {
+  if (window.PREVIEW_DATA) { DATA = window.PREVIEW_DATA; index(); return render(); }
+  const k = new URLSearchParams(location.hash.slice(1)).get('k');
+  if (!k) return notice('주소에 열쇠가 없어요.');
+  try {
+    const blob = await (await fetch('cal.enc', { cache: 'no-store' })).json();
+    DATA = await decrypt(blob, b64(k));
+    index(); render();
+  } catch (e) { notice('캘린더를 불러오지 못했어요.'); }
+})();
+</script>
+</body>
+</html>
