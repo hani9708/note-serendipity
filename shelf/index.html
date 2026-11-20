@@ -65,8 +65,9 @@
     font-size: 10px; line-height: 1; display: flex; align-items: center; justify-content: flex-start;
     white-space: nowrap; overflow: hidden; letter-spacing: .5px;
   }
-  .book.reading { opacity: .4; }
-  .book.reading:hover { opacity: .75; }
+  .book.reading { opacity: .5; }
+  .book.reading:hover { opacity: .8; }
+  .book::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(55,53,47,.16); pointer-events: none; }
   .stats { margin-top: 6px; color: var(--muted); font-size: 12px; }
   .credit { margin-top: 18px; color: var(--muted); font-size: 11px; opacity: .8; }
 
@@ -155,7 +156,7 @@ function render() {
 
 const pop = document.getElementById('pop');
 function show(b, el) {
-  pop.querySelector('img').src = b.cover;
+  const im = pop.querySelector('img'); im.removeAttribute('src'); if (b.cover) im.src = b.cover;
   pop.querySelector('b').textContent = b.title;
   pop.querySelector('.meta').textContent =
     b.author + ' · ' + (b.done ? `${md(b.done)} 완독` : `읽는 중 · ${md(b.start)}부터`);
