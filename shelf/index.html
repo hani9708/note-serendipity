@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>책장</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&display=swap">
 <style>
   /* 노션 기본 색 — 「이번 주 조합」 위젯과 같은 값 */
   :root {
@@ -60,11 +63,24 @@
     overflow: hidden;
   }
   .book:hover { transform: translateY(-4px); }
-  .book.plain span {
-    position: absolute; inset: 6px 0; writing-mode: vertical-rl;
-    font-size: 10px; line-height: 1; display: flex; align-items: center; justify-content: flex-start;
-    white-space: nowrap; overflow: hidden; letter-spacing: .5px;
+  /* 책등 그림이 없는 책: 표지 색 바탕 + 둥근 책등 음영 + 위아래 띠 + 명조 제목·저자 */
+  .book.plain {
+    background: var(--c);
+    display: flex; flex-direction: column; align-items: center; padding: 11px 0 9px;
   }
+  .book.plain::before {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background:
+      linear-gradient(to bottom, transparent 5px, var(--rule) 5px, var(--rule) 6px, transparent 6px,
+                      transparent calc(100% - 6px), var(--rule) calc(100% - 6px), var(--rule) calc(100% - 5px), transparent calc(100% - 5px)),
+      linear-gradient(90deg, rgba(0,0,0,.16) 0%, rgba(255,255,255,.14) 22%, rgba(255,255,255,0) 50%, rgba(0,0,0,.05) 78%, rgba(0,0,0,.2) 100%);
+  }
+  .book.plain .t, .book.plain .a {
+    position: relative; z-index: 2; writing-mode: vertical-rl; white-space: nowrap; overflow: hidden;
+    font-family: "Noto Serif KR", "Apple Myungjo", "AppleMyungjo", serif; color: var(--ink); line-height: 1;
+  }
+  .book.plain .t { flex: 1 1 auto; min-height: 0; font-weight: 600; letter-spacing: .03em; }
+  .book.plain .a { flex: none; margin-top: 8px; font-weight: 500; font-size: 8px; letter-spacing: .08em; opacity: .7; }
   .book.reading { opacity: .5; }
   .book.reading:hover { opacity: .8; }
   .book::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(55,53,47,.16); pointer-events: none; }
@@ -135,8 +151,12 @@ function render() {
       el.style.width = Math.max(MIN_W, Math.round((b.thick || DEF.thick) * MM)) + 'px';
       if (b.spine) el.style.backgroundImage = `url("${b.spine}")`;
       else {
-        el.style.background = b.color;
-        el.innerHTML = `<span style="color:${lum(b.color) > .6 ? 'rgba(0,0,0,.65)' : 'rgba(255,255,255,.85)'}">${b.title}</span>`;
+        const light = lum(b.color) > .6, w = parseFloat(el.style.width);
+        el.style.setProperty('--c', b.color);
+        el.style.setProperty('--ink', light ? 'rgba(30,28,24,.82)' : 'rgba(255,255,255,.9)');
+        el.style.setProperty('--rule', light ? 'rgba(30,28,24,.28)' : 'rgba(255,255,255,.35)');
+        el.innerHTML = `<span class="t" style="font-size:${Math.max(8, Math.min(11, Math.round(w * .58)))}px">${b.title}</span>` +
+          (b.author && w >= 11 ? `<span class="a">${b.author.split(/[,·]/)[0].trim()}</span>` : '');
       }
       el.addEventListener('mouseenter', e => show(b, el));
       el.addEventListener('mouseleave', hide);
@@ -205,6 +225,7 @@ function notice(text) {
   document.getElementById('shelves').innerHTML = `<p class="stats">${text}</p>`;
 }
 (async () => {
+  if (window.PREVIEW_DATA) { BOOKS = window.PREVIEW_DATA; return render(); }
   const k = new URLSearchParams(location.hash.slice(1)).get('k');
   if (!k) return notice('주소에 열쇠가 없어요.');
   try {
