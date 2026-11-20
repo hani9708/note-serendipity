@@ -49,9 +49,10 @@
 
   section + section { margin-top: 22px; }
   .year { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  /* 선반 길이 = 책 너비 + 양옆 여유 (책이 적으면 짧은 선반). 넘치면 그해 책을 줄여 한 줄에 맞춤 */
   .shelf {
-    display: flex; align-items: flex-end; gap: 2px;
-    min-height: 40px; padding: 0 6px;
+    display: inline-flex; align-items: flex-end; gap: 2px; max-width: 100%;
+    min-height: 40px; min-width: 160px; padding: 0 12px;
     border-bottom: 2px solid var(--shelf);
   }
   .book {
@@ -84,6 +85,32 @@
   .book.reading { opacity: .5; }
   .book.reading:hover { opacity: .8; }
   .book::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(55,53,47,.16); pointer-events: none; }
+  /* 누적 책장 */
+  .row { display: flex; width: 100%; min-width: 0; margin-top: 20px; }
+  .book { transition: transform .2s ease, opacity .2s ease, filter .2s ease; }
+  .book.lift { transform: translateY(-10px); }
+  /* 칸막이 = 책보다 살짝 높이 솟은 얇은 색인 카드, 연도는 세로 명조 */
+  .divider {
+    flex: none; width: 11px; align-self: stretch; margin-top: -12px; cursor: default;
+    display: flex; justify-content: center; padding-top: 6px;
+    background: var(--bg); border: 1px solid var(--line); border-bottom: 0; border-radius: 3px 3px 0 0;
+    box-shadow: 1px 0 2px rgba(0,0,0,.18); transition: opacity .2s ease, border-color .2s ease;
+  }
+  .divider span {
+    writing-mode: vertical-rl; font-family: "Noto Serif KR", "Apple Myungjo", serif;
+    font-size: 9px; font-weight: 600; letter-spacing: .5px; color: var(--muted); transition: color .2s ease;
+  }
+  .divider.on { border-color: var(--muted); }
+  .divider.on span { color: var(--text); }
+  /* 칸막이에 마우스: 그해 책만 떠오르고 나머지는 어둡고 흐리게 */
+  #shelves.focus .book:not(.lift) { opacity: .18; filter: grayscale(.6); }
+  #shelves.focus .divider:not(.on) { opacity: .25; }
+  #shelves.focus .book.reading.lift { opacity: .75; }
+  .tip {
+    position: fixed; z-index: 10; display: none; white-space: nowrap; pointer-events: none;
+    background: var(--bg); box-shadow: var(--shadow); border-radius: 6px; padding: 5px 9px; font-size: 12px;
+  }
+  .tip.on { display: block; }
   .stats { margin-top: 6px; color: var(--muted); font-size: 12px; }
   .credit { margin-top: 18px; color: var(--muted); font-size: 11px; opacity: .8; }
 
@@ -103,7 +130,7 @@
 <body>
 <main>
   <header>
-    <span>책장</span>
+    <span id="label">책장</span>
     <button class="theme" type="button" aria-label="밝게/어둡게" onclick="toggleTheme()">
       <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11" /><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></svg>
     </button>
@@ -128,50 +155,117 @@ function lum(hex) {
 }
 function md(s) { const [y, m, d] = s.split('-'); return `${+m}/${+d}`; }
 
-function render() {
-  const years = {};
-  const thisYear = String(new Date().getFullYear());
-  for (const b of BOOKS) {
-    const y = b.done ? b.done.slice(0, 4) : (b.status === '읽는 중' ? thisYear : null);
-    if (!y) continue;
-    (years[y] ||= []).push(b);
+// 보기: 주소에 ?view=all 이면 누적 책장(연도 칸막이, 줄바꿈), 아니면 올해 책장
+const VIEW = new URLSearchParams(location.search).get('view') === 'all' ? 'all' : 'year';
+const THIS_YEAR = String(new Date().getFullYear());
+const yearOf = b => b.done ? b.done.slice(0, 4) : (b.status === '읽는 중' ? THIS_YEAR : null);
+const order = (a, b) => (a.done ? 0 : 1) - (b.done ? 0 : 1) || (a.done || a.start || '').localeCompare(b.done || b.start || '');
+
+function makeBook(b, k) {
+  const el = document.createElement('div');
+  el.className = 'book' + (b.spine ? '' : ' plain') + (b.done ? '' : ' reading');
+  el.style.height = ((b.tall || DEF.tall) * MM * k).toFixed(1) + 'px';
+  el.style.width = (Math.max(MIN_W, (b.thick || DEF.thick) * MM) * k).toFixed(1) + 'px';
+  if (b.spine) el.style.backgroundImage = `url("${b.spine}")`;
+  else {
+    const light = lum(b.color) > .6, w = parseFloat(el.style.width);
+    el.style.setProperty('--c', b.color);
+    el.style.setProperty('--ink', light ? 'rgba(30,28,24,.82)' : 'rgba(255,255,255,.9)');
+    el.style.setProperty('--rule', light ? 'rgba(30,28,24,.28)' : 'rgba(255,255,255,.35)');
+    el.innerHTML = `<span class="t" style="font-size:${Math.max(8, Math.min(11, Math.round(w * .58)))}px">${b.title}</span>` +
+      (b.author && w >= 11 ? `<span class="a">${b.author.split(/[,·]/)[0].trim()}</span>` : '');
   }
+  el.addEventListener('mouseenter', () => show(b, el));
+  el.addEventListener('mouseleave', hide);
+  el.addEventListener('click', () => window.open(b.url, '_blank'));
+  return el;
+}
+
+function stats(list) {
+  const done = list.filter(b => b.done), reading = list.filter(b => !b.done);
+  const pages = done.reduce((s, b) => s + (b.pages || 0), 0);
+  const parts = [];
+  if (done.length) parts.push(`완독 ${done.length}권`);
+  if (pages) parts.push(`${pages.toLocaleString()}쪽`);
+  if (reading.length) parts.push(`읽는 중 ${reading.length}권`);
+  return parts.join(' · ');
+}
+
+function render() { VIEW === 'all' ? renderAll() : renderYear(); }
+
+// 올해 책장: 올해 완독 + 읽는 중만. 선반은 책만큼, 넘치면 줄여서 한 줄에
+function renderYear() {
+  const list = BOOKS.filter(b => yearOf(b) === THIS_YEAR).sort(order);
   const box = document.getElementById('shelves');
   box.innerHTML = '';
-  for (const y of Object.keys(years).sort().reverse()) {
-    const list = years[y].sort((a, b) =>
-      (a.done ? 0 : 1) - (b.done ? 0 : 1) || (a.done || a.start || '').localeCompare(b.done || b.start || ''));
-    const sec = document.createElement('section');
-    sec.innerHTML = `<div class="year">${y}</div><div class="shelf"></div><div class="stats"></div>`;
-    const shelf = sec.querySelector('.shelf');
-    for (const b of list) {
-      const el = document.createElement('div');
-      el.className = 'book' + (b.spine ? '' : ' plain') + (b.done ? '' : ' reading');
-      el.style.height = Math.round((b.tall || DEF.tall) * MM) + 'px';
-      el.style.width = Math.max(MIN_W, Math.round((b.thick || DEF.thick) * MM)) + 'px';
-      if (b.spine) el.style.backgroundImage = `url("${b.spine}")`;
-      else {
-        const light = lum(b.color) > .6, w = parseFloat(el.style.width);
-        el.style.setProperty('--c', b.color);
-        el.style.setProperty('--ink', light ? 'rgba(30,28,24,.82)' : 'rgba(255,255,255,.9)');
-        el.style.setProperty('--rule', light ? 'rgba(30,28,24,.28)' : 'rgba(255,255,255,.35)');
-        el.innerHTML = `<span class="t" style="font-size:${Math.max(8, Math.min(11, Math.round(w * .58)))}px">${b.title}</span>` +
-          (b.author && w >= 11 ? `<span class="a">${b.author.split(/[,·]/)[0].trim()}</span>` : '');
-      }
-      el.addEventListener('mouseenter', e => show(b, el));
-      el.addEventListener('mouseleave', hide);
-      el.addEventListener('click', () => window.open(b.url, '_blank'));
-      shelf.appendChild(el);
-    }
-    const done = list.filter(b => b.done), reading = list.filter(b => !b.done);
-    const pages = done.reduce((s, b) => s + (b.pages || 0), 0);
-    const parts = [];
-    if (done.length) parts.push(`완독 ${done.length}권`);
-    if (pages) parts.push(`${pages.toLocaleString()}쪽`);
-    if (reading.length) parts.push(`읽는 중 ${reading.length}권`);
-    sec.querySelector('.stats').textContent = parts.join(' · ');
-    box.appendChild(sec);
+  const sec = document.createElement('section');
+  sec.innerHTML = `<div class="year">${THIS_YEAR}</div><div class="shelf"></div><div class="stats"></div>`;
+  const shelf = sec.querySelector('.shelf');
+  box.appendChild(sec);
+  const need = list.reduce((s, b) => s + Math.max(MIN_W, (b.thick || DEF.thick) * MM), 0);
+  const k = need ? Math.min(1, (box.clientWidth - 24 - 2 * (list.length - 1) - 2) / need) : 1;
+  for (const b of list) shelf.appendChild(makeBook(b, k));
+  sec.querySelector('.stats').textContent = stats(list) || '아직 올해 읽은 책이 없어요.';
+}
+
+// 누적 책장: 오래된 해부터 한 줄로 이어 꽂고, 해가 바뀌는 자리에 칸막이. 줄이 차면 다음 칸으로
+function renderAll() {
+  const years = {};
+  for (const b of BOOKS) { const y = yearOf(b); if (y) (years[y] ||= []).push(b); }
+  const box = document.getElementById('shelves');
+  box.innerHTML = '';
+  const items = [];
+  for (const y of Object.keys(years).sort()) {
+    items.push({ divider: y, list: years[y] });
+    for (const b of years[y].sort(order)) items.push({ book: b, year: y });
   }
+  const avail = box.clientWidth - 24, GAP = 2, DIV_W = 14;
+  let row = null, used = 0;
+  const newRow = () => { row = document.createElement('div'); row.className = 'shelf row'; box.appendChild(row); used = 0; };
+  newRow();
+  for (const it of items) {
+    const w = it.divider ? DIV_W : Math.max(MIN_W, (it.book.thick || DEF.thick) * MM);
+    if (used && used + GAP + w > avail) newRow();
+    used += (used ? GAP : 0) + w;
+    if (it.divider) {
+      const d = document.createElement('div');
+      d.className = 'divider';
+      d.innerHTML = `<span>${it.divider}</span>`;
+      d.addEventListener('mouseenter', () => lift(it.divider, d, it.list));
+      d.addEventListener('mouseleave', () => lift(null));
+      row.appendChild(d);
+    } else {
+      const el = makeBook(it.book, 1);
+      el.dataset.year = it.year;
+      row.appendChild(el);
+    }
+  }
+  const all = Object.values(years).flat();
+  const ys = Object.keys(years).sort();
+  const tot = document.createElement('div');
+  tot.className = 'stats';
+  tot.textContent = all.length ? `${ys[0]}${ys.length > 1 ? '–' + ys[ys.length - 1] : ''} · ${stats(all)}` : '아직 꽂힌 책이 없어요.';
+  box.appendChild(tot);
+}
+
+// 칸막이에 마우스: 그해 책이 모두 조금 떠오르고, 칸막이 옆에 그해 합계
+const tip = document.createElement('div');
+tip.className = 'tip';
+document.body.appendChild(tip);
+function lift(y, d, list) {
+  document.querySelectorAll('.book.lift').forEach(e => e.classList.remove('lift'));
+  document.querySelectorAll('.divider.on').forEach(e => e.classList.remove('on'));
+  document.getElementById('shelves').classList.toggle('focus', !!y);
+  if (!y) { tip.classList.remove('on'); return; }
+  document.querySelectorAll(`.book[data-year="${y}"]`).forEach(e => e.classList.add('lift'));
+  d.classList.add('on');
+  tip.textContent = `${y} · ${stats(list)}`;
+  tip.classList.add('on');
+  const r = d.getBoundingClientRect();
+  let left = r.right + 6;
+  if (left + tip.offsetWidth > innerWidth - 4) left = r.left - tip.offsetWidth - 6;
+  tip.style.left = Math.max(4, left) + 'px';
+  tip.style.top = Math.max(4, r.top - 4) + 'px';
 }
 
 const pop = document.getElementById('pop');
@@ -193,6 +287,9 @@ function show(b, el) {
   pop.style.top = top + 'px';
 }
 function hide() { pop.classList.remove('on'); }
+
+let resizeTimer;
+addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => BOOKS.length && render(), 150); });
 
 function toggleTheme() {
   const root = document.documentElement;
@@ -221,6 +318,7 @@ async function decrypt(blob, rawKey) {
   }
   return JSON.parse(new TextDecoder().decode(out));
 }
+if (VIEW === 'all') document.getElementById('label').textContent = '누적 책장';
 function notice(text) {
   document.getElementById('shelves').innerHTML = `<p class="stats">${text}</p>`;
 }
