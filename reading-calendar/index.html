@@ -229,8 +229,17 @@ function drawBars(grid, start, m) {
   const list = periods().filter(p => p.s <= gEnd && p.e >= gStart).sort((a, b) => a.s - b.s);
   const lanes = document.createElement('div');
   lanes.className = 'lanes';
+  // 막대가 칸을 넘지 않게: 먼저 간격·두께를 줄이고(최소 5px 간격·3px 두께), 그래도 넘치면 그달 칸 높이를 늘린다
+  const TOP = 26, BOTTOM = 4, n = Math.min(list.length, 12);
+  let rowH = grid.clientHeight / 6;
+  let gap = n ? Math.min(9, (rowH - TOP - BOTTOM) / n) : 9;
+  if (gap < 5) {
+    gap = 5;
+    grid.querySelectorAll('.day').forEach(d => { d.style.aspectRatio = 'auto'; d.style.height = `${TOP + n * gap + BOTTOM}px`; });
+  }
+  const barH = Math.max(3, Math.min(6, gap - 3));
   list.forEach((p, lane) => {
-    if (lane > 5) return;  // 한 칸에 6줄까지
+    if (lane >= n) return;  // 한 칸에 12줄까지
     const color = dotColor(p.b.color);
     for (let r = 0; r < 6; r++) {
       const rs = new Date(gStart.getTime() + 7 * r * DAY), re = new Date(rs.getTime() + 6 * DAY);
@@ -243,7 +252,8 @@ function drawBars(grid, start, m) {
       seg.style.background = color;
       seg.style.left = `calc(${c0} * 100% / 7 + ${+a === +p.s ? 4 : 0}px)`;
       seg.style.width = `calc(${span} * 100% / 7 - ${(+a === +p.s ? 4 : 0) + (+z === +p.e ? 4 : 0)}px)`;
-      seg.style.top = `calc(${r} * 100% / 6 + 24px + ${lane * 9}px)`;
+      seg.style.top = `calc(${r} * 100% / 6 + ${TOP}px + ${(lane * gap).toFixed(1)}px)`;
+      seg.style.height = barH + 'px';
       seg.addEventListener('mouseenter', () => barTip(seg, p));
       seg.addEventListener('mouseleave', () => barTip(null));
       seg.addEventListener('click', ev => { ev.stopPropagation(); window.open(p.b.url, '_blank'); });
