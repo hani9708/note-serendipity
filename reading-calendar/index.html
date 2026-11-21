@@ -74,6 +74,10 @@
          background: var(--bg); box-shadow: var(--shadow); border-radius: 6px; padding: 5px 9px; font-size: 12px; }
   .tip.on { display: block; }
   .tip .s { color: var(--muted); }
+  .tip.rich.on { display: flex; align-items: center; gap: 9px; padding: 6px 10px 6px 6px; }
+  .tip.rich img { width: 40px; height: 60px; object-fit: cover; border-radius: 2px; flex: none; background: var(--line); }
+  .tip.rich b { display: block; font-size: 13px; line-height: 1.35; }
+  .tip.rich .s { display: block; font-size: 12px; margin-top: 2px; }
   .nav { width: 24px; height: 24px; color: var(--muted); font-size: 16px; line-height: 1; }
 
   .week, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
@@ -324,13 +328,18 @@ function barTip(seg, p) {
   if (!seg) { tip.classList.remove('on'); lanes && lanes.classList.remove('focus'); return; }
   lanes.classList.add('focus');
   document.querySelectorAll(`.seg[data-id="${p.id}"]`).forEach(e => e.classList.add('hl'));
-  const md = d => `${d.getMonth() + 1}/${d.getDate()}`;
+  // 해를 넘기는 기간이면 연도도 붙인다 (22.4/11–26.8/26)
+  const md = d => (p.s.getFullYear() !== p.e.getFullYear() ? `${String(d.getFullYear()).slice(2)}.` : '') + `${d.getMonth() + 1}/${d.getDate()}`;
   const n = days(p.s, p.e) + 1;
   tip.innerHTML = `<b>${esc(p.b.title)}</b> <span class="s">· ${p.open ? `${md(p.s)}부터 · ${n}일째` : `${md(p.s)}–${md(p.e)} · ${n}일`}</span>`;
+  // 표지·포스터를 함께 보여 준다 (포스터 보기의 칸 카드처럼)
+  tip.classList.toggle('rich', !!p.b.cover);
+  if (p.b.cover) tip.innerHTML = `<img src="${esc(p.b.cover)}" alt=""><div>${tip.innerHTML.replace('</b> <span class="s">· ', '</b><span class="s">')}</div>`;
   tip.classList.add('on');
   const r = seg.getBoundingClientRect();
   tip.style.left = Math.max(4, Math.min(r.left, innerWidth - tip.offsetWidth - 4)) + 'px';
-  tip.style.top = Math.max(4, r.top - tip.offsetHeight - 6) + 'px';
+  const above = r.top - tip.offsetHeight - 6;
+  tip.style.top = (above < 4 ? r.bottom + 6 : above) + 'px';
 }
 
 function barStats(y, m) {
