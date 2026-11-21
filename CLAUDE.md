@@ -32,14 +32,19 @@
 
 노션 Studio 페이지 맨 위에 embed로 들어간다. **내용은 암호화해서만 올린다** (공개 저장소).
 
+## 데이터는 구글 시트에 (2026-11-21부터)
+예약 작업은 이 저장소에 push할 수 없어서, 매일 바뀌는 데이터는 구글 시트 「Studio 위젯 데이터 (암호문)」
+(`14nzh-m3sWdijZwLWue-q_-zlWyt0pb-7h7kl4jebLqc`, 링크가 있는 사람 보기)에 둔다.
+- `desk!A1` — 암호문 JSON 한 칸 (`{"v":1,"iv":…,"ct":…}`). 위젯이 gviz CSV로 읽는다.
+- `history!A:B` — 날짜(텍스트)·표현 수집함 행 ID. 문장 금지.
+- 저장소의 `desk/data.json`·`desk/history.json`은 11-20까지의 예전 사본. 위젯은 시트를 못 읽을 때만 `data.json`을 쓴다.
+
 ## 파일
-- `desk/index.html` — 위젯 화면. `desk/data.json`을 읽고, 주소의 `#` 뒤 열쇠로 브라우저에서 푼다.
-- `desk/data.json` — 암호문만 (`{v, iv, ct}`). `desk/seal.py`로 만든다.
-- `desk/seal.py` — 평문 JSON → `data.json`. 열쇠는 환경 변수 `STUDIO_DESK_KEY`로만 받는다.
-- `desk/history.json` — 날짜별로 띄운 표현 수집함 행 **ID만** (문장 금지).
+- `desk/index.html` — 위젯 화면. 시트 `desk!A1`(안 되면 `desk/data.json`)을 읽고, 주소의 `#` 뒤 열쇠로 브라우저에서 푼다.
+- `desk/seal.py` — 평문 JSON → `data.json` 암호문. 열쇠는 환경 변수 `STUDIO_DESK_KEY`로만 받는다. 만든 `data.json`을 한 줄로 시트에 넣는다 (커밋하지 않음).
 
 ## 규칙
 - 평문 JSON·열쇠는 절대 커밋하지 않는다. 평문은 작업 폴더 밖 임시 파일에만.
 - 평문 모양: `{updated, focus:{range, text, report, report_label}, sentences:[{date, label, id, text, bone, tags, book}]}` — `sentences[0]`이 오늘, 최근 3개까지.
 - 크랙 작품 이름은 넣지 않는다 (`book`은 책 문장일 때만).
-- 커밋 메시지 `desk YYYY-MM-DD`.
+- 화면(`index.html`)을 고칠 때만 커밋한다. 매일 데이터는 커밋하지 않는다.
