@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>감상 현황</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&display=swap">
+<style>
+  /* 노션 기본 색 — 책장·독서 캘린더와 같은 값 */
+  :root {
+    --bg: #ffffff; --text: rgb(55, 53, 47); --muted: rgba(55, 53, 47, 0.5); --faint: rgba(55, 53, 47, 0.25);
+    --line: rgba(55, 53, 47, 0.16); --shelf: rgba(55, 53, 47, 0.28); --hover: rgba(55, 53, 47, 0.08);
+    --shadow: 0 0 0 1px rgba(15,15,15,.05), 0 3px 6px rgba(15,15,15,.1), 0 9px 24px rgba(15,15,15,.2);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #191919; --text: rgba(255,255,255,.81); --muted: rgba(255,255,255,.45); --faint: rgba(255,255,255,.2);
+      --line: rgba(255,255,255,.14); --shelf: rgba(255,255,255,.3); --hover: rgba(255,255,255,.06);
+      --shadow: 0 0 0 1px rgba(255,255,255,.08), 0 3px 6px rgba(0,0,0,.4), 0 9px 24px rgba(0,0,0,.5);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #191919; --text: rgba(255,255,255,.81); --muted: rgba(255,255,255,.45); --faint: rgba(255,255,255,.2);
+    --line: rgba(255,255,255,.14); --shelf: rgba(255,255,255,.3); --hover: rgba(255,255,255,.06);
+    --shadow: 0 0 0 1px rgba(255,255,255,.08), 0 3px 6px rgba(0,0,0,.4), 0 9px 24px rgba(0,0,0,.5);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple SD Gothic Neo", "Noto Sans KR", Arial, sans-serif;
+    font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  main { padding: 12px 4px 10px; }
+  header { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; border-radius: 4px; padding: 0; }
+  button:hover { background: var(--hover); }
+  .theme { width: 22px; height: 22px; display: grid; place-items: center; }
+  .theme svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+  /* 보기 전환: 왼쪽에 둔다 (오른쪽 위는 노션 임베드 도구 막대 자리) */
+  .styles { display: flex; gap: 2px; margin-left: 4px; padding-left: 8px; border-left: 1px solid var(--line); }
+  .style { width: 24px; height: 22px; display: grid; place-items: center; color: var(--faint); }
+  .style.on { color: var(--text); background: var(--hover); }
+  .style svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.4; }
+
+  .rows { position: relative; }
+  .row { display: flex; align-items: flex-end; border-bottom: 2px solid var(--shelf); padding: 0 6px; min-height: 30px; }
+  .row + .row { margin-top: calc(18px * var(--k)); }
+  .rows > .row:first-child { margin-top: calc(14px * var(--k)); }
+  .item { flex: none; position: relative; display: block; transition: transform .2s ease, opacity .2s ease, filter .2s ease; }
+  .item.reading { opacity: .5; }
+  .item.reading:hover { opacity: .85; }
+  .item.lift { transform: translateY(-10px); }
+  .rows.focus .item:not(.lift) { opacity: .18; filter: grayscale(.6); }
+  .rows.focus .divider:not(.on) { opacity: .25; }
+  /* 색인 카드 칸막이 (누적 책장과 같음) */
+  .divider { flex: none; width: 11px; align-self: stretch; margin: -12px 4px 0; display: flex; justify-content: center; padding-top: 6px;
+    background: var(--bg); border: 1px solid var(--line); border-bottom: 0; border-radius: 3px 3px 0 0;
+    box-shadow: 1px 0 2px rgba(0,0,0,.18); cursor: default; position: relative; z-index: 3; transition: opacity .2s, border-color .2s; }
+  .divider span { writing-mode: vertical-rl; font-family: "Noto Serif KR", "Apple Myungjo", serif; font-size: 9px; font-weight: 600; letter-spacing: .5px; color: var(--muted); }
+  .divider.on { border-color: var(--muted); } .divider.on span { color: var(--text); }
+
+  /* A 상자: 포스터를 겹쳐 세움. 각 연도·줄의 마지막 작품은 다 보임 */
+  .A .item { width: var(--w); height: var(--h); border-radius: 2px; background: center/cover no-repeat var(--c, var(--line));
+    box-shadow: -2px 0 5px rgba(0,0,0,.28), inset 0 0 0 1px rgba(0,0,0,.08); }
+  .A .item:not(.last) { margin-right: calc(var(--s) - var(--w)); }
+  .A .item:hover { z-index: 5; transform: translateY(-8px) scale(1.06); }
+  .A .item.lift:hover { transform: translateY(-14px) scale(1.06); }
+  .A .item .nt { position: absolute; inset: 6px 4px; font-family: "Noto Serif KR", serif; font-size: calc(9px * var(--k)); font-weight: 600;
+    color: var(--ink); writing-mode: vertical-rl; overflow: hidden; }
+
+  /* B 책등: 포스터 색 바탕 + 공식 로고를 세로로. 시리즈는 두껍게, 게임은 키 크게 + 위 띠가 플랫폼 색 */
+  .B .item + .item { margin-left: 2px; }
+  .B .item { width: var(--sw); height: var(--sh); border-radius: 1.5px 1.5px 0 0; background: var(--c); overflow: hidden; }
+  .B .item::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(90deg, rgba(0,0,0,.18) 0%, rgba(255,255,255,.12) 18%, rgba(255,255,255,0) 50%, rgba(0,0,0,.06) 80%, rgba(0,0,0,.22) 100%); }
+  .B .item::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 0 1px rgba(55,53,47,.16); pointer-events: none; border-radius: inherit; }
+  .B .band { position: absolute; left: 0; right: 0; top: 0; height: calc(9px * var(--k)); background: rgba(0,0,0,.28); }
+  .B .logo { position: absolute; left: 50%; top: calc(50% + 4px * var(--k)); width: var(--lw); height: var(--lh);
+    transform: translate(-50%, -50%) rotate(90deg); background: center/contain no-repeat; }
+  .B .txt { position: absolute; inset: calc(14px * var(--k)) 0 calc(6px * var(--k)); display: flex; justify-content: center; }
+  .B .txt span { writing-mode: vertical-rl; white-space: nowrap; overflow: hidden; font-family: "Noto Serif KR", "Apple Myungjo", serif;
+    font-weight: 600; font-size: calc(10px * var(--k)); color: var(--ink); letter-spacing: .03em; }
+  .B .item:hover { transform: translateY(-5px); }
+  .B .item.lift:hover { transform: translateY(-12px); }
+
+  .stats { margin-top: 8px; color: var(--muted); font-size: 12px; }
+  .credit { margin-top: 12px; color: var(--muted); font-size: 11px; opacity: .8; }
+  .tip { position: fixed; z-index: 20; display: none; pointer-events: none; background: var(--bg); box-shadow: var(--shadow);
+    border-radius: 6px; padding: 5px 9px; font-size: 12px; white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; }
+  .tip.on { display: block; }
+  .tip .s { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span id="name">감상 현황</span>
+    <button class="theme" type="button" aria-label="테마" onclick="toggleTheme()"></button>
+    <span class="styles">
+      <button class="style" data-s="A" type="button" title="포스터 상자" aria-label="포스터 상자 보기" onclick="setStyle('A')"><svg viewBox="0 0 16 16"><rect x="2" y="3.5" width="6" height="9" rx=".8"/><rect x="5" y="3.5" width="6" height="9" rx=".8" fill="var(--bg)"/><rect x="8" y="3.5" width="6" height="9" rx=".8" fill="var(--bg)"/></svg></button>
+      <button class="style" data-s="B" type="button" title="로고 책등" aria-label="로고 책등 보기" onclick="setStyle('B')"><svg viewBox="0 0 16 16"><path d="M3 3.5v9M6 2.5v10M9.5 3.5v9M12.5 2.5v10"/><path d="M1.5 13.5h13"/></svg></button>
+    </span>
+  </header>
+  <div id="box"></div>
+  <p class="credit">포스터·로고 TMDB · Steam</p>
+</main>
+<div class="tip" id="tip"></div>
+
+<script>
+// 데이터는 media.enc (맥 lounge-sync가 매시간 만들어 올림): 영상·게임 DB의 관람완료·관람중 작품.
+// 주소 # 뒤의 열쇠(k=…)로 브라우저 안에서만 푼다. ?view=all = 누적, 없으면 올해.
+const SCOPE = new URLSearchParams(location.search).get('view') === 'all' ? 'all' : 'year';
+const STYLE_KEY = `archive-style-${SCOPE}`;
+let STYLE = SCOPE === 'all' ? 'B' : 'A';
+try { STYLE = localStorage.getItem(STYLE_KEY) || STYLE; } catch (e) {}
+let ITEMS = [];
+const KIND = { movie: '영화', series: '시리즈', show: '예능', docu: '다큐', game: '게임', stage: '공연' };
+const PLAT = { 'Steam': '#2a475e', 'Switch 2': '#e60012', 'PS5': '#0070d1', '모바일': '#8a8a8a' };
+const NOW_Y = String(new Date().getFullYear());
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const short = t => t.replace(/\s*\(.*$/, '');
+const md = d => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
+
+function setStyle(s) { STYLE = s; try { localStorage.setItem(STYLE_KEY, s); } catch (e) {} render(); }
+
+const tip = document.getElementById('tip');
+function showTip(el, html) {
+  tip.innerHTML = html; tip.classList.add('on');
+  const r = el.getBoundingClientRect();
+  tip.style.left = Math.min(innerWidth - tip.offsetWidth - 6, Math.max(6, r.left + r.width / 2 - tip.offsetWidth / 2)) + 'px';
+  const top = r.top - tip.offsetHeight - 10;
+  tip.style.top = (top < 4 ? r.bottom + 8 : top) + 'px';
+}
+const hideTip = () => tip.classList.remove('on');
+function itemTip(e) {
+  const k = e.k === 'game' && e.pf ? `게임 · ${e.pf}` : KIND[e.k];
+  const when = e.r ? `${md(e.d)}부터 보는 중` : e.d.replace(/-/g, '.');
+  return `<b>${esc(e.t)}</b><br><span class="s">${k} · ${when}${e.f ? ' · ' + esc(e.f) : ''}</span>`;
+}
+
+function stats(list) {
+  const n = ks => list.filter(e => ks.includes(e.k)).length;
+  const parts = [['영화', n(['movie'])], ['시리즈', n(['series', 'show', 'docu'])], ['게임', n(['game'])], ['공연', n(['stage'])]]
+    .filter(([, c]) => c).map(([a, c]) => `${a} ${c}`);
+  const reading = list.filter(e => e.r).length;
+  if (SCOPE === 'year') return `${NOW_Y} · ${list.length - reading}편${parts.length ? ' · ' + parts.join(' · ') : ''}${reading ? ` · 보는 중 ${reading}` : ''}`;
+  const ys = [...new Set(list.map(e => e.d.slice(0, 4)))];
+  return `${ys[0]}–${ys[ys.length - 1]} · 지금까지 ${list.length}편${parts.length ? ' · ' + parts.join(' · ') : ''}`;
+}
+
+// 크기 k배 기준 치수
+const A0 = { w: 64, h: 96, s: 20 };
+const SPINE = { movie: [22, 118], stage: [22, 118], series: [30, 118], show: [24, 118], docu: [24, 118], game: [24, 128] };
+const DIV = 19;
+
+function makeItem(e, last, k) {
+  const el = document.createElement('a');
+  el.className = 'item' + (last ? ' last' : '') + (e.r ? ' reading' : '');
+  el.href = e.u; el.target = '_blank'; el.rel = 'noopener';
+  el.style.setProperty('--c', e.c); el.style.setProperty('--ink', e.ink);
+  if (STYLE === 'A') {
+    if (e.p) el.style.backgroundImage = `url("${e.p}")`;
+    else el.innerHTML = `<span class="nt">${esc(short(e.t))}</span>`;
+  } else {
+    const [w, h] = SPINE[e.k] || SPINE.movie;
+    el.style.setProperty('--sw', w * k + 'px'); el.style.setProperty('--sh', h * k + 'px');
+    const band = document.createElement('div'); band.className = 'band';
+    if (e.k === 'game' && PLAT[e.pf]) band.style.background = PLAT[e.pf];
+    el.appendChild(band);
+    if (e.l) {
+      // 로고를 90° 돌려 책등에: 돌린 뒤 가로 ≤ 폭-8, 세로 ≤ 키-26
+      const ar = e.la || 3; let lh = (w - 8) * k, lw = lh * ar;
+      if (lw > (h - 26) * k) { lw = (h - 26) * k; lh = lw / ar; }
+      const g = document.createElement('div'); g.className = 'logo';
+      g.style.cssText = `--lw:${lw}px;--lh:${lh}px;background-image:url("${e.l}")`;
+      g.style.filter = e.lum != null && e.lum < .55 ? 'drop-shadow(0 0 .5px rgba(255,255,255,.6))' : 'drop-shadow(0 0 .5px rgba(0,0,0,.5))';
+      el.appendChild(g);
+    } else {
+      el.insertAdjacentHTML('beforeend', `<div class="txt"><span>${esc(short(e.t))}</span></div>`);
+    }
+  }
+  el.addEventListener('mouseenter', () => showTip(el, itemTip(e)));
+  el.addEventListener('mouseleave', hideTip);
+  return el;
+}
+
+// 폭에 맞춰 줄로 나눠 담는다. 누적이면 해가 바뀌는 자리에 칸막이
+function layout(rowsEl, list, k) {
+  rowsEl.innerHTML = '';
+  rowsEl.style.setProperty('--k', k);
+  rowsEl.style.cssText += `;--w:${A0.w * k}px;--h:${A0.h * k}px;--s:${A0.s * k}px`;
+  const W = rowsEl.clientWidth - 12;
+  const full = e => STYLE === 'A' ? A0.w * k : ((SPINE[e.k] || SPINE.movie)[0] * k + 2);
+  const thin = e => STYLE === 'A' ? A0.s * k : full(e);
+  const seq = [];
+  if (SCOPE === 'all') {
+    [...new Set(list.map(e => e.d.slice(0, 4)))].forEach(y => { seq.push({ div: y }); list.filter(e => e.d.startsWith(y)).forEach(e => seq.push({ e, y })); });
+  } else list.forEach(e => seq.push({ e, y: NOW_Y }));
+  let row, used = 0;
+  const newRow = () => { row = document.createElement('div'); row.className = 'row'; rowsEl.appendChild(row); used = 0; };
+  newRow();
+  seq.forEach((s, i) => {
+    const next = seq[i + 1];
+    if (s.div) {
+      if (used && used + DIV + full(seq[i + 1] ? seq[i + 1].e : list[0]) > W) newRow();
+      const d = document.createElement('div'); d.className = 'divider'; d.innerHTML = `<span>${s.div}</span>`;
+      const cnt = list.filter(e => e.d.startsWith(s.div)).length;
+      d.addEventListener('mouseenter', () => { rowsEl.classList.add('focus'); d.classList.add('on');
+        rowsEl.querySelectorAll(`.item[data-y="${s.div}"]`).forEach(x => x.classList.add('lift'));
+        showTip(d, `<b>${s.div}</b> <span class="s">· ${cnt}편</span>`); });
+      d.addEventListener('mouseleave', () => { rowsEl.classList.remove('focus'); d.classList.remove('on');
+        rowsEl.querySelectorAll('.lift').forEach(x => x.classList.remove('lift')); hideTip(); });
+      row.appendChild(d); used += DIV; return;
+    }
+    if (used && used + full(s.e) > W) newRow();
+    const endOfYear = !next || next.div;
+    const nextW = next ? (next.div ? DIV + full(list[0]) : full(next.e)) : 0;
+    const last = STYLE === 'A' && (endOfYear || used + thin(s.e) + nextW > W);
+    const el = makeItem(s.e, last, k); el.dataset.y = s.y;
+    row.appendChild(el); used += last || STYLE === 'B' ? full(s.e) : thin(s.e);
+  });
+}
+
+function render() {
+  document.querySelectorAll('.style').forEach(b => b.classList.toggle('on', b.dataset.s === STYLE));
+  document.getElementById('name').textContent = SCOPE === 'all' ? '감상 현황 · 누적' : `감상 현황 · ${NOW_Y}`;
+  const list = SCOPE === 'all' ? ITEMS : ITEMS.filter(e => e.d.startsWith(NOW_Y) || e.r);
+  const box = document.getElementById('box');
+  box.innerHTML = `<div class="rows ${STYLE}" id="rows"></div><p class="stats">${list.length ? stats(list) : '아직 기록이 없어요'}</p>`;
+  const rowsEl = document.getElementById('rows');
+  // 임베드 높이에 맞춰 크기를 고른다: 들어가는 가장 큰 크기 (올해는 최대 1.6배, 누적은 1.2배)
+  const max = SCOPE === 'all' ? 1.2 : 1.6, min = .5;
+  let k = max;
+  for (; k > min; k = Math.round((k - .05) * 100) / 100) {
+    layout(rowsEl, list, k);
+    if (document.documentElement.scrollHeight <= innerHeight) break;
+  }
+  if (k <= min) layout(rowsEl, list, min);
+}
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => ITEMS.length && render(), 150); });
+
+// 테마: 자동(기기 설정을 따름) → 라이트 → 다크 순으로 바뀜. 위젯끼리 같은 값을 쓴다
+const THEME_KEY = 'widget-theme', THEMES = ['auto', 'light', 'dark'];
+const THEME_ICON = {
+  auto: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></svg>',
+  light: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3"/></svg>',
+  dark: '<svg viewBox="0 0 16 16"><path d="M13 9.8A5.5 5.5 0 0 1 6.2 3a5.5 5.5 0 1 0 6.8 6.8z"/></svg>',
+};
+const THEME_NAME = { auto: '테마: 자동 (기기 설정)', light: '테마: 라이트', dark: '테마: 다크' };
+function themeNow() { try { return localStorage.getItem(THEME_KEY) || 'auto'; } catch (e) { return 'auto'; } }
+function applyTheme(t) {
+  const root = document.documentElement;
+  if (t === 'light' || t === 'dark') root.dataset.theme = t; else delete root.dataset.theme;
+  document.querySelectorAll('.theme').forEach(b => { b.innerHTML = THEME_ICON[t] || THEME_ICON.auto; b.title = THEME_NAME[t]; b.setAttribute('aria-label', THEME_NAME[t]); });
+}
+function toggleTheme() {
+  const next = THEMES[(THEMES.indexOf(themeNow()) + 1) % THEMES.length];
+  try { next === 'auto' ? localStorage.removeItem(THEME_KEY) : localStorage.setItem(THEME_KEY, next); } catch (e) {}
+  applyTheme(next);
+}
+applyTheme(themeNow());
+addEventListener('storage', e => { if (e.key === THEME_KEY) applyTheme(e.newValue || 'auto'); });
+
+const b64 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+async function hmac(key, data) { return new Uint8Array(await crypto.subtle.sign('HMAC', key, data)); }
+function cat(...parts) {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0)); let i = 0;
+  for (const p of parts) { out.set(p, i); i += p.length; } return out;
+}
+async function decrypt(blob, rawKey) {
+  const key = await crypto.subtle.importKey('raw', rawKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const n = b64(blob.n), c = b64(blob.c), t = b64(blob.t);
+  const tag = (await hmac(key, cat(new TextEncoder().encode('tag'), n, c))).slice(0, 16);
+  if (tag.length !== t.length || tag.some((x, i) => x !== t[i])) throw new Error('열쇠가 맞지 않아요');
+  const out = new Uint8Array(c.length);
+  for (let i = 0, ctr = 0; i < c.length; i += 32, ctr++) {
+    const cb = new Uint8Array(4); new DataView(cb.buffer).setUint32(0, ctr);
+    const ks = await hmac(key, cat(n, cb));
+    for (let j = 0; j < 32 && i + j < c.length; j++) out[i + j] = c[i + j] ^ ks[j];
+  }
+  return JSON.parse(new TextDecoder().decode(out));
+}
+function notice(text) { document.getElementById('box').innerHTML = `<p class="stats">${text}</p>`; }
+(async () => {
+  if (window.PREVIEW_DATA) { ITEMS = window.PREVIEW_DATA.items; return render(); }
+  const k = new URLSearchParams(location.hash.slice(1)).get('k');
+  if (!k) return notice('주소에 열쇠가 없어요.');
+  try {
+    const blob = await (await fetch('media.enc', { cache: 'no-store' })).json();
+    ITEMS = (await decrypt(blob, b64(k))).items;
+    render();
+  } catch (e) { notice('감상 현황을 불러오지 못했어요.'); }
+})();
+</script>
+</body>
+</html>
