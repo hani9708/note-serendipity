@@ -133,7 +133,7 @@
 <main>
   <header>
     <span id="label">책장</span>
-    <button class="theme" type="button" aria-label="밝게/어둡게" onclick="toggleTheme()">
+    <button class="theme" type="button" aria-label="테마" onclick="toggleTheme()">
       <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11" /><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></svg>
     </button>
   </header>
@@ -320,13 +320,27 @@ function hide() { pop.classList.remove('on'); }
 let resizeTimer;
 addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => BOOKS.length && render(), 150); });
 
-function toggleTheme() {
+// 테마: 자동(기기 설정을 따름) → 라이트 → 다크 순으로 바뀜. 위젯끼리 같은 값을 쓴다
+const THEME_KEY = 'widget-theme', THEMES = ['auto', 'light', 'dark'];
+const THEME_ICON = {
+  auto: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></svg>',
+  light: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3"/></svg>',
+  dark: '<svg viewBox="0 0 16 16"><path d="M13 9.8A5.5 5.5 0 0 1 6.2 3a5.5 5.5 0 1 0 6.8 6.8z"/></svg>',
+};
+const THEME_NAME = { auto: '테마: 자동 (기기 설정)', light: '테마: 라이트', dark: '테마: 다크' };
+function themeNow() { try { return localStorage.getItem(THEME_KEY) || 'auto'; } catch (e) { return 'auto'; } }
+function applyTheme(t) {
   const root = document.documentElement;
-  const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-  root.dataset.theme = dark ? 'light' : 'dark';
-  try { localStorage.setItem('shelf-theme', root.dataset.theme); } catch (e) {}
+  if (t === 'light' || t === 'dark') root.dataset.theme = t; else delete root.dataset.theme;
+  document.querySelectorAll('.theme').forEach(b => { b.innerHTML = THEME_ICON[t] || THEME_ICON.auto; b.title = THEME_NAME[t]; b.setAttribute('aria-label', THEME_NAME[t]); });
 }
-try { const t = localStorage.getItem('shelf-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+function toggleTheme() {
+  const next = THEMES[(THEMES.indexOf(themeNow()) + 1) % THEMES.length];
+  try { next === 'auto' ? localStorage.removeItem(THEME_KEY) : localStorage.setItem(THEME_KEY, next); } catch (e) {}
+  applyTheme(next);
+}
+applyTheme(themeNow());
+addEventListener('storage', e => { if (e.key === THEME_KEY) applyTheme(e.newValue || 'auto'); });
 
 const b64 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
 async function hmac(key, data) { return new Uint8Array(await crypto.subtle.sign('HMAC', key, data)); }
