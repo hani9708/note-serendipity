@@ -74,6 +74,11 @@
          background: var(--bg); box-shadow: var(--shadow); border-radius: 6px; padding: 5px 9px; font-size: 12px; }
   .tip.on { display: block; }
   .tip .s { color: var(--muted); }
+  .seg.going { opacity: .55; }
+  .hangp { position: absolute; object-fit: cover; border-radius: 0 0 2px 2px; border-top: 3px solid; background: var(--line);
+           box-shadow: 0 1px 3px rgba(0,0,0,.25); pointer-events: auto; cursor: pointer; z-index: 2; transition: transform .15s; }
+  .hangp:hover { transform: translateY(1px) scale(1.25); transform-origin: top center; z-index: 5; }
+  .lanes.focus .hangp:not(.hl) { opacity: .25; }
   .tip.rich.on { display: flex; align-items: center; gap: 9px; padding: 6px 10px 6px 6px; }
   .tip.rich img { width: 40px; height: 60px; object-fit: cover; border-radius: 2px; flex: none; background: var(--line); }
   .tip.rich b { display: block; font-size: 13px; line-height: 1.35; }
@@ -97,8 +102,6 @@
     background: var(--text); color: var(--bg); text-align: center; font-weight: 600;
   }
   .covers { position: absolute; left: 6px; top: 6px; bottom: 6px; display: flex; }
-  .grid.both .covers { top: auto; bottom: 5px; height: var(--ph, 40px); z-index: 1; }
-  .grid.both .lanes { z-index: 2; }
   .covers img {
     height: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 2px; background: var(--line);
     box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgba(0,0,0,.15);
@@ -226,15 +229,15 @@ function render() {
     <span class="modes">
       <button class="mode ${VIEW === 'dots' ? 'on' : ''}" onclick="setView('dots')" aria-label="포스터 보기" title="포스터"><svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="6" height="9" rx="1"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg></button>
       <button class="mode ${VIEW === 'bars' ? 'on' : ''}" onclick="setView('bars')" aria-label="기간 보기" title="본 기간"><svg viewBox="0 0 16 16"><path d="M2 4.5h9M5 8h9M2 11.5h7"/></svg></button>
-      <button class="mode ${VIEW === 'both' ? 'on' : ''}" onclick="setView('both')" aria-label="포스터와 기간 보기" title="포스터 + 기간"><svg viewBox="0 0 16 16"><path d="M2 3.5h12M2 6.5h8"/><rect x="2.5" y="9" width="3.5" height="5" rx=".7"/><rect x="9.5" y="9" width="3.5" height="5" rx=".7"/></svg></button>
+      <button class="mode ${VIEW === 'both' ? 'on' : ''}" onclick="setView('both')" aria-label="포스터 매단 기간 보기" title="기간 + 포스터"><svg viewBox="0 0 16 16"><path d="M1.5 4h11"/><rect x="9" y="4" width="4" height="6" rx=".6"/><path d="M3.5 11.5h5"/></svg></button>
     </span></div>
     <div class="week">${WD.map(w => `<div>${w}</div>`).join('')}</div><div class="grid">`;
   for (let i = 0; i < 42; i++) {
     const d = new Date(start); d.setDate(start.getDate() + i);
     const key = iso(d), other = d.getMonth() !== m, e = !other && byDay[key];
-    const cls = ['day', other && 'other', key === today && 'today', e && VIEW !== 'bars' && 'has'].filter(Boolean).join(' ');
+    const cls = ['day', other && 'other', key === today && 'today', e && VIEW === 'dots' && 'has'].filter(Boolean).join(' ');
     let inner = `<div class="n"><span>${d.getDate()}</span></div>`;
-    if (e && VIEW !== 'bars') {
+    if (e && VIEW === 'dots') {
       if (e.done.length) inner += `<div class="covers">${e.done.slice(0, 3).map(id =>
         `<img src="${esc(DATA.books[id].cover)}" alt="" loading="lazy">`).join('')}</div>`;
       if (e.notes.length) {
@@ -249,8 +252,8 @@ function render() {
   const box = document.getElementById('cal');
   box.innerHTML = html;
   fitHeight(box);
-  if (VIEW !== 'dots') drawBars(box.querySelector('.grid'), start, m);
-  box.querySelector('.grid').classList.toggle('both', VIEW === 'both');
+  if (VIEW === 'bars') drawBars(box.querySelector('.grid'), start, m);
+  if (VIEW === 'both') drawHang(box.querySelector('.grid'), start);
   box.querySelectorAll('.day.has').forEach(el => {
     el.addEventListener('mouseenter', () => { if (!pinned) show(el); });
     el.addEventListener('mouseleave', () => { if (!pinned) later(); });
@@ -290,8 +293,7 @@ function periods() {
 
 function drawBars(grid, start, m) {
   const gStart = toDate(iso(start)), gEnd = new Date(gStart.getTime() + 41 * DAY);
-  const list = periods().filter(p => p.s <= gEnd && p.e >= gStart && !(VIEW === 'both' && +p.s === +p.e && !p.open))
-    .sort((a, b) => a.s - b.s || b.e - a.e);
+  const list = periods().filter(p => p.s <= gEnd && p.e >= gStart).sort((a, b) => a.s - b.s || b.e - a.e);
   // 빈 줄 채우기: 앞 막대가 끝난 다음 날부터 같은 줄을 쓴다
   const ends = [];
   list.forEach(p => { let i = ends.findIndex(e => e < p.s); if (i < 0) { i = ends.length; ends.push(0); } ends[i] = p.e; p.lane = i; });
@@ -301,16 +303,12 @@ function drawBars(grid, start, m) {
   // 막대가 칸을 넘지 않게: 먼저 간격·두께를 줄이고(최소 5px 간격·3px 두께), 그래도 넘치면 그달 칸 높이를 늘린다
   const TOP = 26, BOTTOM = 4, n = Math.min(used, 12);
   let rowH = grid.clientHeight / 6;
-  // 합친 보기는 포스터 자리(최소 34px)를 남기고 막대를 더 촘촘하게
-  const both = VIEW === 'both', RESERVE = both ? 34 : 0, MAXGAP = both ? 7 : 9, MINGAP = both ? 3.5 : 4;
-  let gap = n ? Math.min(MAXGAP, (rowH - TOP - BOTTOM - RESERVE) / n) : MAXGAP;
-  if (gap < MINGAP) {
-    gap = MINGAP; rowH = TOP + n * gap + BOTTOM + RESERVE;
-    grid.querySelectorAll('.day').forEach(d => { d.style.aspectRatio = 'auto'; d.style.height = `${rowH}px`; });
+  let gap = n ? Math.min(9, (rowH - TOP - BOTTOM) / n) : 9;
+  if (gap < 4) {
+    gap = 4;
+    grid.querySelectorAll('.day').forEach(d => { d.style.aspectRatio = 'auto'; d.style.height = `${TOP + n * gap + BOTTOM}px`; });
   }
-  const barH = both ? Math.max(2, Math.min(5, gap - 2)) : Math.max(3, Math.min(6, gap - 3));
-  // 포스터 높이 = 칸에서 숫자 줄과 막대를 뺀 나머지
-  grid.style.setProperty('--ph', Math.max(28, Math.floor(rowH - TOP - n * gap - 8)) + 'px');
+  const barH = Math.max(3, Math.min(6, gap - 3));
   list.forEach(p => {
     const lane = p.lane;
     if (lane >= n) return;  // 한 칸에 12줄까지
@@ -333,6 +331,73 @@ function drawBars(grid, start, m) {
       seg.addEventListener('click', ev => { ev.stopPropagation(); window.open(p.b.url, '_blank'); });
       lanes.appendChild(seg);
     }
+  });
+  grid.appendChild(lanes);
+}
+
+// ── 기간 + 포스터 보기: 막대 끝(다 본 날)에 포스터가 매달린다 ─────────────
+// 하루짜리(영화)는 막대 없이 포스터만. 보는 중이면 오늘 칸에 흐린 포스터.
+// 줄 배치는 막대만 기준(앞 막대가 끝나면 같은 줄을 다시 씀). 포스터는 아래 줄 위로 겹쳐 매달리고,
+// 같은 날 끝난 작품이 여럿이면 포스터를 왼쪽으로 나란히 놓는다
+function drawHang(grid, start) {
+  const gStart = toDate(iso(start)), gEnd = new Date(gStart.getTime() + 41 * DAY);
+  const list = periods().filter(p => p.s <= gEnd && p.e >= gStart).sort((a, b) => a.s - b.s || b.e - a.e);
+  const cellW = grid.clientWidth / 7;
+  const PW = Math.round(Math.max(16, Math.min(22, cellW * .17))), PH = Math.round(PW * 1.5);
+  const PITCH = 7, TOP = 26;
+  const occ = [];
+  const di = d => Math.max(0, Math.min(41, days(gStart, d)));
+  const free = (lane, a, b) => { for (let x = a; x <= b; x++) if (occ[lane] && occ[lane].has(x)) return false; return true; };
+  const take = (lane, a, b) => { occ[lane] = occ[lane] || new Set(); for (let x = a; x <= b; x++) occ[lane].add(x); };
+  list.forEach(p => {
+    const a = di(p.s), z = di(p.e), tag = p.e <= gEnd;
+    for (let lane = 0; lane < 60; lane++) {
+      if (free(lane, a, z)) { take(lane, a, z); p.lane = lane; break; }
+    }
+  });
+  // 칸 높이: 기본 높이로 모자라면 늘린다
+  let rowH = grid.clientHeight / 6;
+  const need = TOP + Math.max(0, occ.length - 1) * PITCH + PH + 6;
+  if (need > rowH) {
+    rowH = need;
+    grid.querySelectorAll('.day').forEach(d => { d.style.aspectRatio = 'auto'; d.style.height = `${rowH}px`; });
+  }
+  const lanes = document.createElement('div');
+  lanes.className = 'lanes';
+  const perDay = {};
+  list.forEach(p => {
+    const color = bookColor(p.b), y0 = TOP + p.lane * PITCH;
+    const single = +p.s === +p.e && !p.open;
+    if (!single) for (let r = 0; r < 6; r++) {
+      const rs = new Date(gStart.getTime() + 7 * r * DAY), re = new Date(rs.getTime() + 6 * DAY);
+      if (p.e < rs || p.s > re) continue;
+      const a = p.s > rs ? p.s : rs, z = p.e < re ? p.e : re;
+      const c0 = days(rs, a), span = days(a, z) + 1, first = +a === +p.s, last = +z === +p.e;
+      const seg = document.createElement('div');
+      seg.className = 'seg hang' + (first ? ' l' : '') + (last && !p.open ? ' r' : '') + (p.open ? ' going' : '');
+      seg.dataset.id = p.id;
+      seg.style.background = color;
+      seg.style.left = `calc(${c0} * 100% / 7 + ${first ? 4 : 0}px)`;
+      seg.style.width = `calc(${span} * 100% / 7 - ${(first ? 4 : 0) + (last ? 4 : 0)}px)`;
+      seg.style.top = `${r * rowH + y0}px`;
+      seg.style.height = '3px';
+      seg.addEventListener('mouseenter', () => barTip(seg, p));
+      seg.addEventListener('mouseleave', () => barTip(null));
+      seg.addEventListener('click', ev => { ev.stopPropagation(); window.open(p.b.url, '_blank'); });
+      lanes.appendChild(seg);
+    }
+    if (p.e > gEnd) return;
+    // 포스터: 끝나는 칸 오른쪽에, 윗변을 막대 높이에 맞춰 매단다 (윗변 3px = 그 작품 색)
+    const z = di(p.e), r = Math.floor(z / 7), c = z % 7, nth = perDay[z] = (perDay[z] || 0) + 1;
+    const img = document.createElement(p.b.cover ? 'img' : 'div');
+    img.className = 'hangp seg' + (p.open ? ' going' : '');
+    if (p.b.cover) { img.src = p.b.cover; img.alt = ''; img.loading = 'lazy'; }
+    img.dataset.id = p.id;
+    img.style.cssText = `left:calc(${c + 1} * 100% / 7 - ${nth * (PW + 3) + 1}px);top:${r * rowH + y0}px;width:${PW}px;height:${PH}px;border-top-color:${color}`;
+    img.addEventListener('mouseenter', () => barTip(img, p));
+    img.addEventListener('mouseleave', () => barTip(null));
+    img.addEventListener('click', ev => { ev.stopPropagation(); window.open(p.b.url, '_blank'); });
+    lanes.appendChild(img);
   });
   grid.appendChild(lanes);
 }
