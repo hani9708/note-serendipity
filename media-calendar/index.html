@@ -343,7 +343,7 @@ function drawHang(grid, start) {
   const gStart = toDate(iso(start)), gEnd = new Date(gStart.getTime() + 41 * DAY);
   const list = periods().filter(p => p.s <= gEnd && p.e >= gStart).sort((a, b) => a.s - b.s || b.e - a.e);
   const cellW = grid.clientWidth / 7;
-  const PW = Math.round(Math.max(16, Math.min(22, cellW * .17))), PH = Math.round(PW * 1.5);
+  const PW = Math.round(Math.max(20, Math.min(34, cellW * .26))), PH = Math.round(PW * 1.5);
   const PITCH = 7, TOP = 26;
   const occ = [];
   const di = d => Math.max(0, Math.min(41, days(gStart, d)));
@@ -357,7 +357,10 @@ function drawHang(grid, start) {
   });
   // 칸 높이: 기본 높이로 모자라면 늘린다
   let rowH = grid.clientHeight / 6;
-  const need = TOP + Math.max(0, occ.length - 1) * PITCH + PH + 6;
+  // 매다는 날: 다 본 작품은 끝난 날, 아직 보는 중이면 시작한 날 (오늘 칸에 여러 개가 몰리지 않게)
+  const tagDay = p => p.open ? p.s : p.e;
+  const tagLanes = list.filter(p => tagDay(p) >= gStart && tagDay(p) <= gEnd).map(p => p.lane);
+  const need = Math.max(TOP + occ.length * PITCH + 4, TOP + Math.max(0, ...tagLanes) * PITCH + PH + 3);
   if (need > rowH) {
     rowH = need;
     grid.querySelectorAll('.day').forEach(d => { d.style.aspectRatio = 'auto'; d.style.height = `${rowH}px`; });
@@ -374,7 +377,8 @@ function drawHang(grid, start) {
       const a = p.s > rs ? p.s : rs, z = p.e < re ? p.e : re;
       const c0 = days(rs, a), span = days(a, z) + 1, first = +a === +p.s, last = +z === +p.e;
       const seg = document.createElement('div');
-      seg.className = 'seg hang' + (first ? ' l' : '') + (last && !p.open ? ' r' : '') + (p.open ? ' going' : '');
+      // 진행 중인 막대는 진하게 두고 오늘 쪽 끝만 흐려지게 (흐린 건 매단 표지 하나)
+      seg.className = 'seg hang' + (first ? ' l' : '') + (last ? (p.open ? ' open' : ' r') : '');
       seg.dataset.id = p.id;
       seg.style.background = color;
       seg.style.left = `calc(${c0} * 100% / 7 + ${first ? 4 : 0}px)`;
@@ -386,14 +390,15 @@ function drawHang(grid, start) {
       seg.addEventListener('click', ev => { ev.stopPropagation(); window.open(p.b.url, '_blank'); });
       lanes.appendChild(seg);
     }
-    if (p.e > gEnd) return;
+    if (tagDay(p) > gEnd || tagDay(p) < gStart) return;
     // 포스터: 끝나는 칸 오른쪽에, 윗변을 막대 높이에 맞춰 매단다 (윗변 3px = 그 작품 색)
-    const z = di(p.e), r = Math.floor(z / 7), c = z % 7, nth = perDay[z] = (perDay[z] || 0) + 1;
+    const z = di(tagDay(p)), r = Math.floor(z / 7), c = z % 7, nth = perDay[z] = (perDay[z] || 0) + 1;
     const img = document.createElement(p.b.cover ? 'img' : 'div');
-    img.className = 'hangp seg' + (p.open ? ' going' : '');
+    img.className = 'hangp seg' + (p.open ? ' start' : '');
     if (p.b.cover) { img.src = p.b.cover; img.alt = ''; img.loading = 'lazy'; }
     img.dataset.id = p.id;
-    img.style.cssText = `left:calc(${c + 1} * 100% / 7 - ${nth * (PW + 3) + 1}px);top:${r * rowH + y0}px;width:${PW}px;height:${PH}px;border-top-color:${color}`;
+    img.style.cssText = `left:${p.open ? `calc(${c} * 100% / 7 + ${4 + (nth - 1) * Math.round(PW * .6)}px)` : `calc(${c + 1} * 100% / 7 - ${PW + 4 + (nth - 1) * Math.round(PW * .6)}px)`};top:${r * rowH + y0}px;width:${PW}px;height:${PH}px;border-top-color:${color}`;
+    img.style.zIndex = 2 + nth;
     img.addEventListener('mouseenter', () => barTip(img, p));
     img.addEventListener('mouseleave', () => barTip(null));
     img.addEventListener('click', ev => { ev.stopPropagation(); window.open(p.b.url, '_blank'); });
