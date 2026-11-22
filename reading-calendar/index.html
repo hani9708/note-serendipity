@@ -74,6 +74,12 @@
          background: var(--bg); box-shadow: var(--shadow); border-radius: 6px; padding: 5px 9px; font-size: 12px; }
   .tip.on { display: block; }
   .tip .s { color: var(--muted); }
+  .grid.both .dots { right: auto; left: 6px; justify-content: flex-start; }  /* 표지가 칸 오른쪽에 매달려서 점은 왼쪽 아래로 */
+  .seg.going { opacity: .55; }
+  .hangp { position: absolute; object-fit: cover; border-radius: 0 0 2px 2px; border-top: 3px solid; background: var(--line);
+           box-shadow: 0 1px 3px rgba(0,0,0,.25); pointer-events: auto; cursor: pointer; z-index: 2; transition: transform .15s; }
+  .hangp:hover { transform: translateY(1px) scale(1.25); transform-origin: top center; z-index: 5; }
+  .lanes.focus .hangp:not(.hl) { opacity: .25; }
   .tip.rich.on { display: flex; align-items: center; gap: 9px; padding: 6px 10px 6px 6px; }
   .tip.rich img { width: 40px; height: 60px; object-fit: cover; border-radius: 2px; flex: none; background: var(--line); }
   .tip.rich b { display: block; font-size: 13px; line-height: 1.35; }
@@ -220,15 +226,16 @@ function render() {
     <span class="modes">
       <button class="mode ${VIEW === 'dots' ? 'on' : ''}" onclick="setView('dots')" aria-label="표지·점 보기" title="표지·점"><svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="6" height="9" rx="1"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg></button>
       <button class="mode ${VIEW === 'bars' ? 'on' : ''}" onclick="setView('bars')" aria-label="기간 보기" title="읽은 기간"><svg viewBox="0 0 16 16"><path d="M2 4.5h9M5 8h9M2 11.5h7"/></svg></button>
+      <button class="mode ${VIEW === 'both' ? 'on' : ''}" onclick="setView('both')" aria-label="표지 매단 기간 보기" title="기간 + 표지 + 스택"><svg viewBox="0 0 16 16"><path d="M1.5 4h11"/><rect x="9" y="4" width="4" height="6" rx=".6"/><path d="M3.5 11.5h5"/><circle cx="13" cy="13.2" r="1.1" fill="currentColor" stroke="none"/></svg></button>
     </span></div>
     <div class="week">${WD.map(w => `<div>${w}</div>`).join('')}</div><div class="grid">`;
   for (let i = 0; i < 42; i++) {
     const d = new Date(start); d.setDate(start.getDate() + i);
     const key = iso(d), other = d.getMonth() !== m, e = !other && byDay[key];
-    const cls = ['day', other && 'other', key === today && 'today', e && VIEW === 'dots' && 'has'].filter(Boolean).join(' ');
+    const cls = ['day', other && 'other', key === today && 'today', e && (VIEW === 'dots' || (VIEW === 'both' && e.notes.length)) && 'has'].filter(Boolean).join(' ');
     let inner = `<div class="n"><span>${d.getDate()}</span></div>`;
-    if (e && VIEW === 'dots') {
-      if (e.done.length) inner += `<div class="covers">${e.done.slice(0, 3).map(id =>
+    if (e && VIEW !== 'bars') {
+      if (e.done.length && VIEW === 'dots') inner += `<div class="covers">${e.done.slice(0, 3).map(id =>
         `<img src="${esc(DATA.books[id].cover)}" alt="" loading="lazy">`).join('')}</div>`;
       if (e.notes.length) {
         const show = e.notes.slice(0, e.notes.length > 6 ? 5 : 6);
@@ -238,11 +245,12 @@ function render() {
     }
     html += `<div class="${cls}" data-d="${key}">${inner}</div>`;
   }
-  html += `</div><p class="stats">${VIEW === 'bars' ? barStats(y, m) : stats(y, m)}</p>`;
+  html += `</div><p class="stats">${VIEW === 'dots' ? stats(y, m) : barStats(y, m)}</p>`;
   const box = document.getElementById('cal');
   box.innerHTML = html;
   fitHeight(box);
   if (VIEW === 'bars') drawBars(box.querySelector('.grid'), start, m);
+  if (VIEW === 'both') { drawHang(box.querySelector('.grid'), start); box.querySelector('.grid').classList.add('both'); }
   box.querySelectorAll('.day.has').forEach(el => {
     el.addEventListener('mouseenter', () => { if (!pinned) show(el); });
     el.addEventListener('mouseleave', () => { if (!pinned) later(); });
@@ -265,7 +273,7 @@ addEventListener('resize', () => { clearTimeout(fitTimer); fitTimer = setTimeout
 
 // ── 기간 막대 보기 ──────────────────────────────
 let VIEW = 'dots';
-try { VIEW = localStorage.getItem('cal-view') === 'bars' ? 'bars' : 'dots'; } catch (e) {}
+try { const v = localStorage.getItem('cal-view'); VIEW = ['bars', 'both'].includes(v) ? v : 'dots'; } catch (e) {}
 function setView(v) { VIEW = v; try { localStorage.setItem('cal-view', v); } catch (e) {} pinned = null; hide(); render(); }
 const toDate = s => { const [a, b, c] = s.split('-').map(Number); return new Date(a, b - 1, c); };
 const DAY = 864e5;
@@ -315,6 +323,78 @@ function drawBars(grid, start, m) {
       seg.addEventListener('click', ev => { ev.stopPropagation(); window.open(p.b.url, '_blank'); });
       lanes.appendChild(seg);
     }
+  });
+  grid.appendChild(lanes);
+}
+
+// ── 기간 + 표지 보기: 막대 끝(완독한 날)에 표지가 매달린다 (감상 캘린더와 같은 코드) ─────────────
+// 읽는 중이면 오늘 칸에 흐린 표지. 스택 점은 칸 오른쪽 아래(표지·점 보기와 같은 자리).
+// 줄 배치는 막대만 기준(앞 막대가 끝나면 같은 줄을 다시 씀). 포스터는 아래 줄 위로 겹쳐 매달리고,
+// 같은 날 끝난 작품이 여럿이면 포스터를 왼쪽으로 나란히 놓는다
+function drawHang(grid, start) {
+  const gStart = toDate(iso(start)), gEnd = new Date(gStart.getTime() + 41 * DAY);
+  const list = periods().filter(p => p.s <= gEnd && p.e >= gStart).sort((a, b) => a.s - b.s || b.e - a.e);
+  const cellW = grid.clientWidth / 7;
+  const PW = Math.round(Math.max(20, Math.min(34, cellW * .26))), PH = Math.round(PW * 1.5);
+  const PITCH = 7, TOP = 26;
+  const occ = [];
+  const di = d => Math.max(0, Math.min(41, days(gStart, d)));
+  const free = (lane, a, b) => { for (let x = a; x <= b; x++) if (occ[lane] && occ[lane].has(x)) return false; return true; };
+  const take = (lane, a, b) => { occ[lane] = occ[lane] || new Set(); for (let x = a; x <= b; x++) occ[lane].add(x); };
+  list.forEach(p => {
+    const a = di(p.s), z = di(p.e), tag = p.e <= gEnd;
+    for (let lane = 0; lane < 60; lane++) {
+      if (free(lane, a, z)) { take(lane, a, z); p.lane = lane; break; }
+    }
+  });
+  // 칸 높이: 기본 높이로 모자라면 늘린다
+  let rowH = grid.clientHeight / 6;
+  // 매다는 날: 다 본 작품은 끝난 날, 아직 보는 중이면 시작한 날 (오늘 칸에 여러 개가 몰리지 않게)
+  const tagDay = p => p.open ? p.s : p.e;
+  const tagLanes = list.filter(p => tagDay(p) >= gStart && tagDay(p) <= gEnd).map(p => p.lane);
+  const need = Math.max(TOP + occ.length * PITCH + 4, TOP + Math.max(0, ...tagLanes) * PITCH + PH + 3);
+  if (need > rowH) {
+    rowH = need;
+    grid.querySelectorAll('.day').forEach(d => { d.style.aspectRatio = 'auto'; d.style.height = `${rowH}px`; });
+  }
+  const lanes = document.createElement('div');
+  lanes.className = 'lanes';
+  const perDay = {};
+  list.forEach(p => {
+    const color = bookColor(p.b), y0 = TOP + p.lane * PITCH;
+    const single = +p.s === +p.e && !p.open;
+    if (!single) for (let r = 0; r < 6; r++) {
+      const rs = new Date(gStart.getTime() + 7 * r * DAY), re = new Date(rs.getTime() + 6 * DAY);
+      if (p.e < rs || p.s > re) continue;
+      const a = p.s > rs ? p.s : rs, z = p.e < re ? p.e : re;
+      const c0 = days(rs, a), span = days(a, z) + 1, first = +a === +p.s, last = +z === +p.e;
+      const seg = document.createElement('div');
+      // 진행 중인 막대는 진하게 두고 오늘 쪽 끝만 흐려지게 (흐린 건 매단 표지 하나)
+      seg.className = 'seg hang' + (first ? ' l' : '') + (last ? (p.open ? ' open' : ' r') : '');
+      seg.dataset.id = p.id;
+      seg.style.background = color;
+      seg.style.left = `calc(${c0} * 100% / 7 + ${first ? 4 : 0}px)`;
+      seg.style.width = `calc(${span} * 100% / 7 - ${(first ? 4 : 0) + (last ? 4 : 0)}px)`;
+      seg.style.top = `${r * rowH + y0}px`;
+      seg.style.height = '3px';
+      seg.addEventListener('mouseenter', () => barTip(seg, p));
+      seg.addEventListener('mouseleave', () => barTip(null));
+      seg.addEventListener('click', ev => { ev.stopPropagation(); window.open(p.b.url, '_blank'); });
+      lanes.appendChild(seg);
+    }
+    if (tagDay(p) > gEnd || tagDay(p) < gStart) return;
+    // 포스터: 끝나는 칸 오른쪽에, 윗변을 막대 높이에 맞춰 매단다 (윗변 3px = 그 작품 색)
+    const z = di(tagDay(p)), r = Math.floor(z / 7), c = z % 7, nth = perDay[z] = (perDay[z] || 0) + 1;
+    const img = document.createElement(p.b.cover ? 'img' : 'div');
+    img.className = 'hangp seg' + (p.open ? ' start' : '');
+    if (p.b.cover) { img.src = p.b.cover; img.alt = ''; img.loading = 'lazy'; }
+    img.dataset.id = p.id;
+    img.style.cssText = `left:${p.open ? `calc(${c} * 100% / 7 + ${4 + (nth - 1) * Math.round(PW * .6)}px)` : `calc(${c + 1} * 100% / 7 - ${PW + 4 + (nth - 1) * Math.round(PW * .6)}px)`};top:${r * rowH + y0}px;width:${PW}px;height:${PH}px;border-top-color:${color}`;
+    img.style.zIndex = 2 + nth;
+    img.addEventListener('mouseenter', () => barTip(img, p));
+    img.addEventListener('mouseleave', () => barTip(null));
+    img.addEventListener('click', ev => { ev.stopPropagation(); window.open(p.b.url, '_blank'); });
+    lanes.appendChild(img);
   });
   grid.appendChild(lanes);
 }
