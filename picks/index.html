@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>올해의 작품</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600&display=swap">
+<style>
+  /* 노션 기본 색 — 다른 위젯과 같은 값 */
+  :root {
+    --bg: #ffffff; --text: rgb(55, 53, 47); --muted: rgba(55, 53, 47, 0.5); --faint: rgba(55, 53, 47, 0.25);
+    --line: rgba(55, 53, 47, 0.16); --hover: rgba(55, 53, 47, 0.08);
+    --shadow: 0 0 0 1px rgba(15,15,15,.05), 0 3px 6px rgba(15,15,15,.1), 0 9px 24px rgba(15,15,15,.2);
+    --c-book: #448361; --c-movie: #337ea9; --c-series: #d9730d; --c-game: #d44c47; --c-quote: #9065b0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #191919; --text: rgba(255,255,255,.81); --muted: rgba(255,255,255,.45); --faint: rgba(255,255,255,.2);
+      --line: rgba(255,255,255,.14); --hover: rgba(255,255,255,.06);
+      --shadow: 0 0 0 1px rgba(255,255,255,.08), 0 3px 6px rgba(0,0,0,.4), 0 9px 24px rgba(0,0,0,.5);
+      --c-book: #529e72; --c-movie: #5e87c9; --c-series: #c77d48; --c-game: #df5452; --c-quote: #9d68d3;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #191919; --text: rgba(255,255,255,.81); --muted: rgba(255,255,255,.45); --faint: rgba(255,255,255,.2);
+    --line: rgba(255,255,255,.14); --hover: rgba(255,255,255,.06);
+    --shadow: 0 0 0 1px rgba(255,255,255,.08), 0 3px 6px rgba(0,0,0,.4), 0 9px 24px rgba(0,0,0,.5);
+    --c-book: #529e72; --c-movie: #5e87c9; --c-series: #c77d48; --c-game: #df5452; --c-quote: #9d68d3;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple SD Gothic Neo", "Noto Sans KR", Arial, sans-serif;
+    font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  main { padding: 12px 4px 10px; }
+  header { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; border-radius: 4px; padding: 0; }
+  button:hover:not(:disabled) { background: var(--hover); }
+  button:disabled { opacity: .3; cursor: default; }
+  .theme { width: 22px; height: 22px; display: grid; place-items: center; }
+  .theme svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+  .bar { display: flex; align-items: center; gap: 2px; margin-bottom: 14px; }
+  .year { font-size: 15px; font-weight: 600; padding: 0 4px; }
+  .nav { width: 24px; height: 24px; color: var(--muted); font-size: 16px; line-height: 1; }
+
+  /* 네 칸: 넓으면 한 줄, 좁으면 두 줄 */
+  .slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px 16px; }
+  @media (max-width: 520px) { .slots { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .slot { min-width: 0; display: flex; flex-direction: column; }
+  .medium { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .medium i { width: 7px; height: 7px; border-radius: 50%; background: var(--mc); }
+  .medium .n { margin-left: auto; font-size: 11px; color: var(--faint); }
+  /* 액자: 포스터 + 아래 이름판 */
+  .frame { display: block; position: relative; aspect-ratio: 2 / 3; border-radius: 3px; overflow: hidden; color: inherit; text-decoration: none;
+    background: center/cover no-repeat var(--line); box-shadow: 0 0 0 1px var(--line), 0 6px 16px rgba(0,0,0,.18); transition: transform .2s; }
+  .frame::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--mc); }
+  a.frame:hover { transform: translateY(-3px); }
+  .plate { margin-top: 10px; }
+  .plate b { display: block; font-family: "Noto Serif KR", "Apple Myungjo", serif; font-weight: 600; font-size: 14px; line-height: 1.35;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .plate .why { margin-top: 4px; font-family: "Noto Serif KR", "Apple Myungjo", serif; font-size: 12px; line-height: 1.5; color: var(--muted); }
+  .plate .why.empty { color: var(--faint); font-family: inherit; }
+  /* 아직 안 고른 칸: 점선 액자 + 후보 */
+  .frame.blank { background: none; box-shadow: none; border: 1.5px dashed var(--line); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px; padding: 10px; }
+  .frame.blank::after { display: none; }
+  .blank .q { font-size: 12px; color: var(--muted); text-align: center; }
+  .cands { display: flex; gap: 5px; justify-content: center; width: 100%; }
+  .cands a { display: block; width: 30%; max-width: 38px; aspect-ratio: 2 / 3; border-radius: 2px; background: center/cover no-repeat var(--line);
+    box-shadow: 0 0 0 1px var(--line); transition: transform .15s; }
+  .cands a:hover { transform: translateY(-2px); }
+  .blank .ck { font-size: 11px; color: var(--faint); }
+
+  /* 올해의 문장: 연도 아래, 책 첫머리의 제사(題辭)처럼 가운데에 */
+  .epi { display: block; max-width: 560px; margin: -2px auto 22px; text-align: center; color: inherit; text-decoration: none; border-radius: 4px; padding: 4px 8px; }
+  a.epi:hover { background: var(--hover); }
+  .epi blockquote { font-family: "Noto Serif KR", "Apple Myungjo", serif; font-size: 15px; line-height: 1.75; letter-spacing: -.01em;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .epi blockquote::before { content: '“'; } .epi blockquote::after { content: '”'; }
+  .epi .src { margin-top: 4px; font-size: 12px; color: var(--muted); }
+  .epi .src::before { content: '— '; }
+  .epi.cand blockquote { opacity: .4; }
+  .epi.cand .src { color: var(--faint); }
+  .stats { margin-top: 14px; color: var(--muted); font-size: 12px; }
+  .credit { margin-top: 10px; color: var(--muted); font-size: 11px; opacity: .8; }
+  .tip { position: fixed; z-index: 10; display: none; white-space: nowrap; pointer-events: none;
+    background: var(--bg); box-shadow: var(--shadow); border-radius: 6px; padding: 5px 9px; font-size: 12px; }
+  .tip.on { display: block; }
+  .tip .s { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span>올해의 작품</span>
+    <button class="theme" type="button" aria-label="테마" onclick="toggleTheme()"></button>
+  </header>
+  <div id="box"></div>
+  <p class="credit">표지 교보문고·YES24 · 포스터 TMDB · Steam</p>
+</main>
+<div class="tip" id="tip"></div>
+
+<script>
+// 데이터 picks.enc (맥 lounge-sync가 매시간 올림): { picks: {연도: {book|movie|series|game: {t, p, u, why}, quote: {t, src, u, why}}},
+//   pool: [{t, k, d, p, u, f}], quotes: [{t, src, u, d, rep}] (작가 문장·대표 문장), qcount: {연도: 표현 수} }
+// pool = 그해 본 작품(책 포함) — 칸마다 「올해 본 n편」과 아직 안 고른 칸의 후보를 만든다.
+let DATA = { picks: {}, pool: [] }, YEARS = [], cur;
+const SLOTS = [['book', '책'], ['movie', '영화'], ['series', '시리즈'], ['game', '게임']];
+const GROUP = { book: ['book'], movie: ['movie'], series: ['series', 'show', 'docu'], game: ['game'] };
+const FEEL = { '💎 인생작': 5, '🏆 올해의 베스트': 4, '💭 계속 생각남': 3, '👍 좋았음': 2 };
+const UNIT = { book: '권', movie: '편', series: '편', game: '개' };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const short = t => String(t).replace(/\s*\(.*$/, '');
+const tip = document.getElementById('tip');
+function showTip(el, html) {
+  tip.innerHTML = html; tip.classList.add('on');
+  const r = el.getBoundingClientRect();
+  tip.style.left = Math.min(innerWidth - tip.offsetWidth - 6, Math.max(6, r.left + r.width / 2 - tip.offsetWidth / 2)) + 'px';
+  const top = r.top - tip.offsetHeight - 8;
+  tip.style.top = (top < 4 ? r.bottom + 8 : top) + 'px';
+}
+
+function init() {
+  const ys = new Set([...Object.keys(DATA.picks), ...DATA.pool.map(e => e.d.slice(0, 4))]);
+  const now = String(new Date().getFullYear()); ys.add(now);
+  YEARS = [...ys].sort();
+  cur = YEARS.indexOf(now);
+}
+function go(step) { cur = step === 0 ? YEARS.indexOf(String(new Date().getFullYear())) : Math.max(0, Math.min(YEARS.length - 1, cur + step)); render(); }
+
+function render() {
+  const y = YEARS[cur], picks = DATA.picks[y] || {};
+  const seen = k => DATA.pool.filter(e => e.d.startsWith(y) && GROUP[k].includes(e.k));
+  let html = `<div class="bar"><button class="nav" onclick="go(-1)" ${cur <= 0 ? 'disabled' : ''} aria-label="이전 해">‹</button>
+    <button class="year" onclick="go(0)" title="올해">${y}</button>
+    <button class="nav" onclick="go(1)" ${cur >= YEARS.length - 1 ? 'disabled' : ''} aria-label="다음 해">›</button></div>`;
+  // 올해의 문장: 고른 문장, 없으면 그해 대표 문장(없으면 최근 문장)을 흐리게 = 후보
+  const qs = (DATA.quotes || []).filter(q => q.d.startsWith(y));
+  const qp = picks.quote, q = qp || qs.find(x => x.rep) || qs[0];
+  if (q) html += `<a class="epi ${qp ? '' : 'cand'}" href="${esc(q.u)}" target="_blank" rel="noopener" title="${qp ? '올해의 문장' : '올해의 문장 후보 — 아직 고르지 않았어요'}${(DATA.qcount || {})[y] ? ` · ${y}년 모은 문장 ${DATA.qcount[y]}개 중` : ''}">
+      <blockquote>${esc(q.t)}</blockquote><p class="src">${esc(q.src || '')}</p></a>`;
+  html += `<div class="slots">`;
+  let chosen = 0;
+  for (const [k, name] of SLOTS) {
+    const p = picks[k], list = seen(k), n = list.length;
+    html += `<div class="slot" style="--mc:var(--c-${k})"><div class="medium"><i></i>${name}${n ? `<span class="n">${y}년 ${n}${UNIT[k]} 중</span>` : ''}</div>`;
+    if (p) {
+      chosen++;
+      html += `<a class="frame" href="${esc(p.u)}" target="_blank" rel="noopener" style="background-image:url('${esc(p.p || '')}')"></a>
+        <div class="plate"><b>${esc(short(p.t))}</b>${p.why ? `<p class="why">${esc(p.why)}</p>` : `<p class="why empty">고른 이유를 적어 주세요</p>`}</div>`;
+    } else {
+      // 후보: 여운이 높은 순, 없으면 최근에 본 순
+      const cands = list.slice().sort((a, b) => (FEEL[b.f] || 0) - (FEEL[a.f] || 0) || b.d.localeCompare(a.d)).slice(0, 3);
+      const byFeel = cands.some(e => FEEL[e.f]);
+      html += `<div class="frame blank"><p class="q">${n ? '아직 고르지 않았어요' : `${y}년엔 기록이 없어요`}</p>${cands.length ? `<div class="cands">${cands.map((e, i) =>
+        `<a href="${esc(e.u)}" target="_blank" rel="noopener" data-i="${DATA.pool.indexOf(e)}" style="background-image:url('${esc(e.p || '')}')"></a>`).join('')}</div>
+        <p class="ck">${byFeel ? '여운이 남은 작품' : '최근에 본 작품'}</p>` : ''}</div><div class="plate"></div>`;
+    }
+    html += `</div>`;
+  }
+  html += `</div>`;
+  if (picks.quote) chosen++;
+  html += `<p class="stats">${y} · 고른 작품 ${chosen} / 5${chosen < 5 && y === String(new Date().getFullYear()) ? ' · 연도 페이지나 「올해의 한 편」 DB에서 고를 수 있어요' : ''}</p>`;
+  const box = document.getElementById('box');
+  box.innerHTML = html;
+  box.querySelectorAll('.cands a').forEach(a => {
+    const e = DATA.pool[+a.dataset.i];
+    a.addEventListener('mouseenter', () => showTip(a, `<b>${esc(short(e.t))}</b><span class="s"> · ${e.d.slice(5).replace('-', '/')}${e.f ? ' · ' + esc(e.f) : ''}</span>`));
+    a.addEventListener('mouseleave', () => tip.classList.remove('on'));
+  });
+}
+
+// 테마: 자동(기기 설정을 따름) → 라이트 → 다크. 위젯끼리 같은 값을 쓴다
+const THEME_KEY = 'widget-theme', THEMES = ['auto', 'light', 'dark'];
+const THEME_ICON = {
+  auto: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></svg>',
+  light: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3"/></svg>',
+  dark: '<svg viewBox="0 0 16 16"><path d="M13 9.8A5.5 5.5 0 0 1 6.2 3a5.5 5.5 0 1 0 6.8 6.8z"/></svg>',
+};
+const THEME_NAME = { auto: '테마: 자동 (기기 설정)', light: '테마: 라이트', dark: '테마: 다크' };
+function themeNow() { try { return localStorage.getItem(THEME_KEY) || 'auto'; } catch (e) { return 'auto'; } }
+function applyTheme(t) {
+  const root = document.documentElement;
+  if (t === 'light' || t === 'dark') root.dataset.theme = t; else delete root.dataset.theme;
+  document.querySelectorAll('.theme').forEach(b => { b.innerHTML = THEME_ICON[t] || THEME_ICON.auto; b.title = THEME_NAME[t]; b.setAttribute('aria-label', THEME_NAME[t]); });
+}
+function toggleTheme() {
+  const next = THEMES[(THEMES.indexOf(themeNow()) + 1) % THEMES.length];
+  try { next === 'auto' ? localStorage.removeItem(THEME_KEY) : localStorage.setItem(THEME_KEY, next); } catch (e) {}
+  applyTheme(next);
+}
+applyTheme(themeNow());
+addEventListener('storage', e => { if (e.key === THEME_KEY) applyTheme(e.newValue || 'auto'); });
+
+const b64 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+async function hmac(key, data) { return new Uint8Array(await crypto.subtle.sign('HMAC', key, data)); }
+function cat(...parts) {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0)); let i = 0;
+  for (const p of parts) { out.set(p, i); i += p.length; } return out;
+}
+async function decrypt(blob, rawKey) {
+  const key = await crypto.subtle.importKey('raw', rawKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const n = b64(blob.n), c = b64(blob.c), t = b64(blob.t);
+  const tag = (await hmac(key, cat(new TextEncoder().encode('tag'), n, c))).slice(0, 16);
+  if (tag.length !== t.length || tag.some((x, i) => x !== t[i])) throw new Error('열쇠가 맞지 않아요');
+  const out = new Uint8Array(c.length);
+  for (let i = 0, ctr = 0; i < c.length; i += 32, ctr++) {
+    const cb = new Uint8Array(4); new DataView(cb.buffer).setUint32(0, ctr);
+    const ks = await hmac(key, cat(n, cb));
+    for (let j = 0; j < 32 && i + j < c.length; j++) out[i + j] = c[i + j] ^ ks[j];
+  }
+  return JSON.parse(new TextDecoder().decode(out));
+}
+function notice(text) { document.getElementById('box').innerHTML = `<p class="stats">${text}</p>`; }
+(async () => {
+  if (window.PREVIEW_DATA) { DATA = window.PREVIEW_DATA; init(); return render(); }
+  const k = new URLSearchParams(location.hash.slice(1)).get('k');
+  if (!k) return notice('주소에 열쇠가 없어요.');
+  try {
+    const blob = await (await fetch('picks.enc', { cache: 'no-store' })).json();
+    DATA = await decrypt(blob, b64(k));
+    init(); render();
+  } catch (e) { notice('올해의 작품을 불러오지 못했어요.'); }
+})();
+</script>
+</body>
+</html>
